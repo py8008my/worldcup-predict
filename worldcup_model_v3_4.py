@@ -180,145 +180,6 @@ def fetch_results():
         pass  # 静默跳过
     return results
 
-# ── v4.0 新增数据源 ──
-
-def fetch_team_stats():
-    """
-    从 FootyStats 获取世界杯球队高阶统计数据
-    ==========================================
-    返回: {队名: {xG, xGA, ppg, form, gf, ga, ...}}
-    数据缓存到 knowledge_base.json 的 teams_stats 字段
-    静默失败不影响主流程
-    """
-    stats = {}
-    try:
-        # FootyStats 世界杯页面（已抓取过的数据）
-        # 2026-06-17 实际数据（来自 footystats.org/world-cup）:
-        raw_data = {
-            '德国': {'xG': 2.27, 'xGA': 0.78, 'ppg': 3.00, 'gf': 35, 'ga': 7, 'p': 10, 'w': 10, 'd': 0, 'l': 0, 'cs': 50, 'btts': 50},
-            '阿根廷': {'xG': 1.74, 'xGA': 0.71, 'ppg': 2.70, 'gf': 27, 'ga': 2, 'p': 10, 'w': 9, 'd': 0, 'l': 1, 'cs': 80, 'btts': 10},
-            '奥地利': {'xG': 1.40, 'xGA': 0.99, 'ppg': 2.50, 'gf': 26, 'ga': 5, 'p': 10, 'w': 8, 'd': 1, 'l': 1, 'cs': 50, 'btts': 40},
-            '英格兰': {'xG': 2.24, 'xGA': 0.56, 'ppg': 2.50, 'gf': 24, 'ga': 2, 'p': 10, 'w': 8, 'd': 1, 'l': 1, 'cs': 80, 'btts': 10},
-            '法国': {'xG': 2.19, 'xGA': 0.73, 'ppg': 2.50, 'gf': 26, 'ga': 10, 'p': 10, 'w': 8, 'd': 1, 'l': 1, 'cs': 20, 'btts': 80},
-            '科特迪瓦': {'xG': 1.56, 'xGA': 1.01, 'ppg': 2.50, 'gf': 20, 'ga': 7, 'p': 10, 'w': 8, 'd': 1, 'l': 1, 'cs': 60, 'btts': 40},
-            '葡萄牙': {'xG': 2.34, 'xGA': 0.91, 'ppg': 2.30, 'gf': 26, 'ga': 9, 'p': 10, 'w': 7, 'd': 2, 'l': 1, 'cs': 40, 'btts': 50},
-            '墨西哥': {'xG': 1.42, 'xGA': 0.83, 'ppg': 2.30, 'gf': 18, 'ga': 4, 'p': 10, 'w': 7, 'd': 2, 'l': 1, 'cs': 70, 'btts': 30},
-            '西班牙': {'xG': 2.36, 'xGA': 0.66, 'ppg': 2.20, 'gf': 25, 'ga': 4, 'p': 10, 'w': 6, 'd': 4, 'l': 0, 'cs': 70, 'btts': 30},
-            '比利时': {'xG': 2.35, 'xGA': 0.86, 'ppg': 2.20, 'gf': 32, 'ga': 7, 'p': 10, 'w': 6, 'd': 4, 'l': 0, 'cs': 50, 'btts': 50},
-            '克罗地亚': {'xG': 2.02, 'xGA': 1.00, 'ppg': 2.20, 'gf': 19, 'ga': 10, 'p': 10, 'w': 7, 'd': 1, 'l': 2, 'cs': 40, 'btts': 50},
-            '土耳其': {'xG': 1.81, 'xGA': 1.24, 'ppg': 2.20, 'gf': 22, 'ga': 13, 'p': 10, 'w': 7, 'd': 1, 'l': 2, 'cs': 40, 'btts': 40},
-            '阿尔及利亚': {'xG': 1.28, 'xGA': 1.13, 'ppg': 2.20, 'gf': 20, 'ga': 6, 'p': 10, 'w': 7, 'd': 1, 'l': 2, 'cs': 70, 'btts': 10},
-            '哥伦比亚': {'xG': 1.56, 'xGA': 1.04, 'ppg': 2.20, 'gf': 25, 'ga': 10, 'p': 10, 'w': 7, 'd': 1, 'l': 2, 'cs': 50, 'btts': 50},
-            '塞内加尔': {'xG': 1.52, 'xGA': 1.19, 'ppg': 2.20, 'gf': 17, 'ga': 8, 'p': 10, 'w': 7, 'd': 1, 'l': 2, 'cs': 60, 'btts': 40},
-            '挪威': {'xG': 1.80, 'xGA': 1.04, 'ppg': 2.10, 'gf': 34, 'ga': 9, 'p': 10, 'w': 6, 'd': 3, 'l': 1, 'cs': 20, 'btts': 80},
-            '荷兰': {'xG': 1.68, 'xGA': 0.92, 'ppg': 2.10, 'gf': 23, 'ga': 9, 'p': 10, 'w': 6, 'd': 3, 'l': 1, 'cs': 30, 'btts': 60},
-            '苏格兰': {'xG': 1.47, 'xGA': 1.49, 'ppg': 2.10, 'gf': 22, 'ga': 10, 'p': 10, 'w': 7, 'd': 0, 'l': 3, 'cs': 30, 'btts': 50},
-            '日本': {'xG': 1.42, 'xGA': 1.18, 'ppg': 2.10, 'gf': 15, 'ga': 8, 'p': 10, 'w': 6, 'd': 3, 'l': 1, 'cs': 60, 'btts': 30},
-            '刚果金': {'xG': 1.40, 'xGA': 1.13, 'ppg': 2.10, 'gf': 12, 'ga': 3, 'p': 10, 'w': 6, 'd': 3, 'l': 1, 'cs': 70, 'btts': 20},
-            '韩国': {'xG': 1.30, 'xGA': 1.03, 'ppg': 1.90, 'gf': 15, 'ga': 13, 'p': 10, 'w': 6, 'd': 1, 'l': 3, 'cs': 50, 'btts': 20},
-            '美国': {'xG': 1.52, 'xGA': 1.12, 'ppg': 1.90, 'gf': 22, 'ga': 16, 'p': 10, 'w': 6, 'd': 1, 'l': 3, 'cs': 10, 'btts': 80},
-            '摩洛哥': {'xG': 1.54, 'xGA': 0.94, 'ppg': 1.90, 'gf': 17, 'ga': 5, 'p': 10, 'w': 5, 'd': 4, 'l': 1, 'cs': 50, 'btts': 0},
-            '瑞士': {'xG': 1.58, 'xGA': 1.00, 'ppg': 1.70, 'gf': 19, 'ga': 9, 'p': 10, 'w': 4, 'd': 5, 'l': 1, 'cs': 40, 'btts': 60},
-            '乌兹别克': {'xG': 1.20, 'xGA': 1.35, 'ppg': 1.70, 'gf': 14, 'ga': 7, 'p': 10, 'w': 5, 'd': 2, 'l': 3, 'cs': 60, 'btts': 30},
-            '乌拉圭': {'xG': 1.38, 'xGA': 1.07, 'ppg': 1.70, 'gf': 11, 'ga': 8, 'p': 10, 'w': 4, 'd': 5, 'l': 1, 'cs': 60, 'btts': 40},
-            '厄瓜多尔': {'xG': 1.38, 'xGA': 0.99, 'ppg': 1.70, 'gf': 12, 'ga': 6, 'p': 10, 'w': 4, 'd': 5, 'l': 1, 'cs': 40, 'btts': 50},
-            '巴西': {'xG': 1.61, 'xGA': 1.29, 'ppg': 1.70, 'gf': 23, 'ga': 12, 'p': 10, 'w': 5, 'd': 2, 'l': 3, 'cs': 20, 'btts': 70},
-            '佛得角': {'xG': 1.36, 'xGA': 1.22, 'ppg': 1.70, 'gf': 17, 'ga': 9, 'p': 10, 'w': 4, 'd': 5, 'l': 1, 'cs': 60, 'btts': 40},
-            '捷克': {'xG': 1.42, 'xGA': 1.10, 'ppg': 1.60, 'gf': 19, 'ga': 11, 'p': 10, 'w': 4, 'd': 4, 'l': 2, 'cs': 30, 'btts': 0},
-            '澳大利亚': {'xG': 0.91, 'xGA': 1.49, 'ppg': 1.60, 'gf': 14, 'ga': 10, 'p': 10, 'w': 5, 'd': 1, 'l': 4, 'cs': 30, 'btts': 40},
-            '伊拉克': {'xG': 0.94, 'xGA': 1.36, 'ppg': 1.60, 'gf': 11, 'ga': 13, 'p': 10, 'w': 5, 'd': 1, 'l': 4, 'cs': 20, 'btts': 50},
-            '埃及': {'xG': 0.98, 'xGA': 1.46, 'ppg': 1.60, 'gf': 13, 'ga': 7, 'p': 10, 'w': 4, 'd': 4, 'l': 2, 'cs': 50, 'btts': 40},
-            '巴拿马': {'xG': 1.56, 'xGA': 1.51, 'ppg': 1.60, 'gf': 18, 'ga': 16, 'p': 10, 'w': 4, 'd': 4, 'l': 2, 'cs': 10, 'btts': 80},
-            '伊朗': {'xG': 1.30, 'xGA': 1.07, 'ppg': 1.50, 'gf': 16, 'ga': 8, 'p': 10, 'w': 4, 'd': 3, 'l': 3, 'cs': 50, 'btts': 40},
-            '加拿大': {'xG': 1.38, 'xGA': 0.69, 'ppg': 1.50, 'gf': 9, 'ga': 5, 'p': 10, 'w': 3, 'd': 6, 'l': 1, 'cs': 60, 'btts': 30},
-            '约旦': {'xG': 1.34, 'xGA': 1.44, 'ppg': 1.40, 'gf': 16, 'ga': 17, 'p': 10, 'w': 4, 'd': 2, 'l': 4, 'cs': 30, 'btts': 60},
-            '海地': {'xG': 1.25, 'xGA': 1.47, 'ppg': 1.40, 'gf': 15, 'ga': 11, 'p': 10, 'w': 4, 'd': 2, 'l': 4, 'cs': 40, 'btts': 30},
-            '库拉索': {'xG': 1.25, 'xGA': 1.75, 'ppg': 1.40, 'gf': 20, 'ga': 21, 'p': 10, 'w': 4, 'd': 2, 'l': 4, 'cs': 40, 'btts': 0},
-            '巴拉圭': {'xG': 1.22, 'xGA': 1.15, 'ppg': 1.40, 'gf': 13, 'ga': 13, 'p': 10, 'w': 4, 'd': 2, 'l': 4, 'cs': 40, 'btts': 50},
-            '波黑': {'xG': 1.60, 'xGA': 1.23, 'ppg': 1.30, 'gf': 15, 'ga': 11, 'p': 10, 'w': 2, 'd': 7, 'l': 1, 'cs': 10, 'btts': 90},
-            '南非': {'xG': 1.61, 'xGA': 0.88, 'ppg': 1.20, 'gf': 12, 'ga': 13, 'p': 10, 'w': 3, 'd': 3, 'l': 4, 'cs': 10, 'btts': 70},
-            '突尼斯': {'xG': 1.12, 'xGA': 1.46, 'ppg': 1.20, 'gf': 12, 'ga': 17, 'p': 10, 'w': 3, 'd': 3, 'l': 4, 'cs': 30, 'btts': 50},
-            '瑞典': {'xG': 1.26, 'xGA': 1.57, 'ppg': 1.10, 'gf': 16, 'ga': 19, 'p': 10, 'w': 3, 'd': 2, 'l': 5, 'cs': 0, 'btts': 0},
-            '加纳': {'xG': 1.03, 'xGA': 1.34, 'ppg': 1.10, 'gf': 11, 'ga': 14, 'p': 10, 'w': 3, 'd': 2, 'l': 5, 'cs': 30, 'btts': 30},
-            '沙特': {'xG': 0.93, 'xGA': 1.51, 'ppg': 0.90, 'gf': 8, 'ga': 12, 'p': 10, 'w': 2, 'd': 3, 'l': 5, 'cs': 30, 'btts': 40},
-            '卡塔尔': {'xG': 1.11, 'xGA': 1.45, 'ppg': 0.70, 'gf': 6, 'ga': 14, 'p': 10, 'w': 1, 'd': 4, 'l': 5, 'cs': 20, 'btts': 0},
-            '新西兰': {'xG': 1.19, 'xGA': 1.84, 'ppg': 0.50, 'gf': 7, 'ga': 19, 'p': 10, 'w': 1, 'd': 2, 'l': 7, 'cs': 0, 'btts': 50},
-        }
-        stats = raw_data
-    except Exception as e:
-        pass
-    return stats
-
-
-def fetch_h2h_kb(kb):
-    """
-    从知识库 matches 提取历史交锋记录
-    ==================================
-    如果 kb.matches 中有两队之前交手的记录，生成 H2H 数据
-    返回: {(队A,队B): {matches[], winsA, winsB, draws, avg_goals}}
-    """
-    h2h = {}
-    try:
-        matches = kb.get('matches', [])
-        # 按对统计
-        pair_stats = {}
-        for m in matches:
-            name = m.get('match', '')
-            if 'vs' not in name:
-                continue
-            parts = name.split('vs')
-            if len(parts) != 2:
-                continue
-            a, b = parts[0], parts[1]
-            key = tuple(sorted([a, b]))
-            if key not in pair_stats:
-                pair_stats[key] = {'matches': [], 'wins_a': 0, 'wins_b': 0, 'draws': 0, 'goals': 0}
-            
-            score = m.get('score', '0:0')
-            try:
-                hg, ag = score.split(':')
-                hg, ag = int(hg), int(ag)
-            except:
-                continue
-            
-            had = m.get('had', '')
-            pair_stats[key]['matches'].append(m)
-            pair_stats[key]['goals'] += hg + ag
-            
-            # 判断胜负（注意key中a,b已排序，需要还原实际主客）
-            if a == parts[0]:  # a是主队
-                if had == '主胜':
-                    pair_stats[key]['wins_a'] += 1
-                elif had == '客胜':
-                    pair_stats[key]['wins_b'] += 1
-                else:
-                    pair_stats[key]['draws'] += 1
-            else:  # b是主队
-                if had == '主胜':
-                    pair_stats[key]['wins_b'] += 1
-                elif had == '客胜':
-                    pair_stats[key]['wins_a'] += 1
-                else:
-                    pair_stats[key]['draws'] += 1
-        
-        for key, stats in pair_stats.items():
-            n = len(stats['matches'])
-            if n > 0:
-                key_str = f"{key[0]}_{key[1]}"
-                h2h[key_str] = {
-                    'team_a': key[0],
-                    'team_b': key[1],
-                    'total': n,
-                    'wins_a': stats['wins_a'],
-                    'wins_b': stats['wins_b'],
-                    'draws': stats['draws'],
-                    'avg_goals': round(stats['goals'] / n, 1),
-                    'draw_rate': round(stats['draws'] / n, 2),
-                }
-    except Exception:
-        pass
-    return h2h
-
 def update_kb_results(kb, new_results):
     """将新赛果合并到知识库，去重"""
     existing = kb.get('matches', [])
@@ -405,7 +266,7 @@ def parse_matches(raw):
     return ms
 
 # ═══════════════════════════════════════════
-# 2. 信号检测 (v4: +xG +H2H +伤病)
+# 2. 信号检测 (v3: +kb)
 # ═══════════════════════════════════════════
 
 def sig_had(m, kb):
@@ -578,154 +439,16 @@ def sig_consensus(m, allsig):
     
     return{'score':min(score,100),'signals':sigs,'direction':direction}
 
-def sig_xg(m, kb):
-    """
-    xG高阶统计信号 — 预期进球差
-    ===========================
-    从 knowledge_base 的 teams_stats 获取 xG/xGA
-    xG_diff = 主队xG - 客队xGA? 实际用 xG - xGA 净差值
-    如果 xG_diff 与赔率方向矛盾 → 冷门信号
-    """
-    stats = kb.get('teams_stats', {})
-    home = m.get('home', '')
-    away = m.get('away', '')
-    hs = stats.get(home, {})
-    aws = stats.get(away, {})
-    
-    score = 0; sigs = []
-    
-    if not hs or not aws:
-        return {'score': 0, 'signals': [], 'recs': []}
-    
-    hxG = hs.get('xG', 0); hxGA = hs.get('xGA', 0)
-    axG = aws.get('xG', 0); axGA = aws.get('xGA', 0)
-    hppg = hs.get('ppg', 0); appg = aws.get('ppg', 0)
-    
-    # xG净差值
-    h_net = hxG - hxGA  # 主队xG净胜
-    a_net = axG - axGA  # 客队xG净胜
-    
-    # 实力差（用xG衡量）
-    xg_gap = h_net - a_net
-    
-    # 如果客队xG实力明显强于主队，但赔率显示主队热门
-    h_odds = m.get('had_h', 0)
-    a_odds = m.get('had_a', 0)
-    
-    if xg_gap < -0.3:
-        score += 15; sigs.append(f"xG差值{xg_gap:.2f}→客队真实实力更强")
-        if h_odds and a_odds and h_odds < 2.0:
-            score += 20; sigs.append(f"主队赔率{h_odds}但xG劣势{xg_gap:.2f}→冷门预警")
-    elif xg_gap > 0.5:
-        # 主队xG优势明显，但赔率偏高（庄家不看好）→ 可能是陷阱
-        if h_odds and h_odds > 2.0:
-            score += 10; sigs.append(f"主队xG优势{xg_gap:.2f}但赔率{h_odds}偏高")
-    
-    # xGA分析：防守质量
-    if hxGA > 1.5:
-        score += 10; sigs.append(f"主队防守差(xGA={hxGA})→易失球")
-    if axGA < 0.8:
-        score += 10; sigs.append(f"客队防守强(xGA={axGA})→不易被进球")
-    
-    # ppg差异
-    ppg_gap = hppg - appg
-    if ppg_gap < -0.8:
-        score += 12; sigs.append(f"客队近期PPG优势{abs(ppg_gap):.1f}")
-    
-    return {'score': min(score, 100), 'signals': sigs, 'recs': []}
-
-
-def sig_h2h(m, kb):
-    """
-    历史交锋信号
-    =============
-    从 knowledge_base 的 h2h 字段提取两队交锋记录
-    如果历史交锋中冷门频发 → 增强冷门信号
-    """
-    h2h_data = kb.get('h2h', {})
-    home = m.get('home', '')
-    away = m.get('away', '')
-    # h2h的key格式为 "队A_队B"
-    keys_to_try = [f"{home}_{away}", f"{away}_{home}"]
-    h2h = None
-    for k in keys_to_try:
-        if k in h2h_data:
-            h2h = h2h_data[k]
-            break
-    # 也尝试tuple key（兼容旧格式）
-    if h2h is None:
-        for k, v in h2h_data.items():
-            if isinstance(k, tuple) and home in k and away in k:
-                h2h = v
-                break
-    
-    score = 0; sigs = []
-    
-    if not h2h or h2h.get('total', 0) < 2:
-        return {'score': 0, 'signals': [], 'recs': []}
-    
-    total = h2h['total']
-    draw_rate = h2h.get('draw_rate', 0)
-    avg_goals = h2h.get('avg_goals', 0)
-    
-    # 平局率高 → 冷门信号
-    if draw_rate >= 0.4 and total >= 3:
-        score += 20; sigs.append(f"交锋{total}场平局率{draw_rate:.0%}→易平")
-    elif draw_rate >= 0.25:
-        score += 10; sigs.append(f"交锋平局率{draw_rate:.0%}")
-    
-    # 弱队经常赢强队
-    h_odds = m.get('had_h', 0)
-    a_odds = m.get('had_a', 0)
-    wins_a = h2h.get('wins_a', 0); wins_b = h2h.get('wins_b', 0)
-    
-    if h_odds and a_odds:
-        if h_odds < 1.50 and wins_b >= wins_a:  # 主队热门但客队交锋占优
-            score += 25; sigs.append(f"主队赔率{h_odds}但客队交锋{wins_b}胜{wins_a}胜")
-        if a_odds < 2.5 and wins_a >= wins_b:  # 客队低赔但主队交锋不差
-            score += 15; sigs.append(f"客队赔率低但主队交锋占优")
-    
-    # 低进球历史
-    if avg_goals < 2.0 and total >= 3:
-        score += 12; sigs.append(f"交锋场均{avg_goals}球→低比分趋势")
-    
-    return {'score': min(score, 100), 'signals': sigs, 'recs': []}
-
-
-def sig_stage(m, kb):
-    """
-    赛事阶段信号
-    =============
-    小组赛后期/淘汰赛阶段，比赛特性不同：
-    - 淘汰赛：倾向保守，平局率更高，容易爆冷
-    - 小组赛末轮：出线形势影响战意
-    """
-    stage = kb.get('tournament_stage', 'group')
-    score = 0; sigs = []
-    
-    if stage == 'knockout':
-        score += 15; sigs.append("淘汰赛阶段→平局率↑ 冷门率↑")
-        # 淘汰赛加时因素：90分钟平局更常见
-    elif stage == 'group_final':
-        score += 10; sigs.append("小组赛末轮→战意分化 不确定性↑")
-    
-    return {'score': min(score, 100), 'signals': sigs, 'recs': []}
-
-
 # ═══════════════════════════════════════════
 # 3. 综合评分
 # ═══════════════════════════════════════════
 
-W={'had':0.12,'hhad':0.08,'ttg':0.10,'crs':0.14,'hafu':0.08,'cross':0.15,'kb':0.06,'oddsdev':0.06,'consensus':0.07,'xg':0.08,'h2h':0.04,'stage':0.02}
+W={'had':0.14,'hhad':0.09,'ttg':0.11,'crs':0.16,'hafu':0.09,'cross':0.18,'kb':0.07,'oddsdev':0.07,'consensus':0.09}
 
 def score_match(m, kb):
     sigs={'had':sig_had(m,kb),'hhad':sig_hhad(m),'ttg':sig_ttg(m),'crs':sig_crs(m,kb),'hafu':sig_hafu(m)}
     sigs['cross']=sig_cross(m,sigs)
     sigs['consensus']=sig_consensus(m,sigs)
-    # v4.0 新增信号
-    sigs['xg']=sig_xg(m,kb)
-    sigs['h2h']=sig_h2h(m,kb)
-    sigs['stage']=sig_stage(m,kb)
     # kb extra
     kb_s=0;kb_d=[]
     tf_h=fuzzy_team(m.get('home',''),kb)
@@ -740,15 +463,10 @@ def score_match(m, kb):
         fair=1/h+1/m.get('had_d',0)+1/m.get('had_a',0)
         dev=abs(1/h/fair-0.5)*100
         if dev>8:od_s=15;od_d.append(f"隐含概率偏离{dev:.0f}%")
-    # 赔率变动追踪：对比上次快照（时间序列）
+    # 赔率变动追踪：对比上次快照
     snapshots=kb.get('odds_snapshots',{})
     if match_id and match_id in snapshots:
-        history = snapshots[match_id]
-        # 兼容旧格式(dict)和新格式(list)
-        if isinstance(history, list):
-            prev = history[-1]  # 取最近一次
-        else:
-            prev = history
+        prev=snapshots[match_id]
         ph=prev.get('had_h');pd_=prev.get('had_d');pa=prev.get('had_a')
         if ph and h:
             delta_h=(h-ph)/ph*100
@@ -831,44 +549,40 @@ HIGH_PLAYS  = ['比分']
 # 4a. 期望值引擎 — 概率×赔率驱动
 # ═══════════════════════════════════════════
 
-def _signal_to_prob(signal_score, play_type='', odds=None):
+def _signal_to_prob(signal_score, play_type=''):
     """
-    信号分 → 概率映射（v5.0改进：融合赔率隐含概率）
-    =================================================
-    v5.0核心改进：
-    - 旧版：概率只看信号分，导致同信号分下高赔率EV虚高
-    - 新版：概率 = 信号分概率 × 0.5 + 赔率隐含概率 × 0.5
-    - 这样EV = prob × odds 不会再偏向极端高赔率
+    信号分 → 隐含概率映射
+    =====================
+    按玩法区分概率基准：
+      - 胜平负/让球/总进球/半全场：信号强=冷门概率较高
+      - 比分：同样信号分下概率更低（比分偶然性大）
     
-    赔率隐含概率 = 1/odds（庄家定价反映的真实概率）
-    融合概率 = max(信号概率 × 0.5 + 隐含概率 × 0.5, 0.005)
+    基础映射（胜平负/总进球等）：
+      信号分 0-10  → 概率 1%-3%
+      信号分 10-20 → 概率 3%-8%
+      信号分 20-35 → 概率 8%-18%
+      信号分 35-55 → 概率 18%-30%
+      信号分 55+   → 概率 30%-40%
+    
+    比分玩法：在基础映射上×0.35（同样信号，比分发生概率约1/3）
     """
-    # 基础概率（信号分映射）
+    # 基础概率
     if signal_score <= 0:
         base = 0.01
     elif signal_score <= 10:
-        base = 0.01 + (signal_score / 10) * 0.02
+        base = 0.01 + (signal_score / 10) * 0.02  # 1%→3%
     elif signal_score <= 20:
-        base = 0.03 + ((signal_score - 10) / 10) * 0.05
+        base = 0.03 + ((signal_score - 10) / 10) * 0.05  # 3%→8%
     elif signal_score <= 35:
-        base = 0.08 + ((signal_score - 20) / 15) * 0.10
+        base = 0.08 + ((signal_score - 20) / 15) * 0.10  # 8%→18%
     elif signal_score <= 55:
-        base = 0.18 + ((signal_score - 35) / 20) * 0.12
+        base = 0.18 + ((signal_score - 35) / 20) * 0.12  # 18%→30%
     else:
-        base = min(0.30 + ((signal_score - 55) / 45) * 0.10, 0.40)
+        base = min(0.30 + ((signal_score - 55) / 45) * 0.10, 0.40)  # 30%→40%
     
     # 比分玩法概率折扣
     if play_type == '比分':
         base *= 0.35
-    
-    # v5.0：融合赔率隐含概率
-    if odds and odds > 1.0:
-        implied_prob = 1.0 / odds  # 庄家隐含概率
-        # 融合：信号分概率和赔率隐含概率的加权平均
-        # 信号分反映模型分析，隐含概率反映市场定价
-        # 两者取平均，避免极端
-        fused = base * 0.4 + implied_prob * 0.6  # 市场定价权重更高
-        return max(fused, 0.005)  # 最低0.5%
     
     return base
 
@@ -876,20 +590,20 @@ def _calc_ev(signal_score, odds, play_type=''):
     """
     期望值 = 概率 × 赔率
     ==================
-    v5.0: 概率融合了赔率隐含概率，避免高赔率EV虚高
     EV > 1.0  → 正期望
     EV = 1.0  → 公平
     EV < 1.0  → 负期望
     """
-    prob = _signal_to_prob(signal_score, play_type, odds)
+    prob = _signal_to_prob(signal_score, play_type)
     return prob * odds, prob
 
-def _pick_best_bets_per_match(scored_match, top_per_play=2):
+def _pick_best_bets_per_match(scored_match):
     """
-    每场比赛的最优投注选择（支持复式多选）
-    =====================================
-    按玩法分组，每个玩法取EV最高的top_per_play个候选。
-    这样复式投注时可以在同一玩法下多选（如总进球同时选0球和1球）。
+    每场比赛的最优投注选择
+    ======================
+    按玩法分组，每个玩法取EV最高的1个候选。
+    这样保证比分/总进球/胜平负/让球/半全场各玩法都有代表，
+    不会因为比分赔率高EV碾压而丢失其他玩法机会。
     """
     recs = scored_match.get('recs', [])
     
@@ -930,19 +644,12 @@ def _pick_best_bets_per_match(scored_match, top_per_play=2):
             'total_score': scored_match['total'],
             'cold_type': r.get('cold_type', ''),
         }
-        if play not in by_play:
-            by_play[play] = []
-        by_play[play].append(bet)
+        if play not in by_play or ev > by_play[play]['ev']:
+            by_play[play] = bet
     
-    # 每个玩法取TOP-N
-    result = []
-    for play, bets in by_play.items():
-        bets.sort(key=lambda x: -x['ev'])
-        result.extend(bets[:top_per_play])
-    
-    # 按EV降序排列
-    result.sort(key=lambda x: -x['ev'])
-    return result  # 返回所有玩法TOP2，按EV排序
+    # 按EV降序排列所有玩法代表
+    result = sorted(by_play.values(), key=lambda x: -x['ev'])
+    return result  # 返回所有玩法TOP1，按EV排序
 
 
 def _combo_ev(bets):
@@ -963,245 +670,212 @@ def _combo_ev(bets):
 
 def _gen_smart_plan(scored):
     """
-    博冷方案 v5.0 — 宝藏冷门 + 高概率串关
-    =========================================
-    核心思路（小弟设计）：
-    ① 先从冷门信号最强的比赛里，选出1-2个"宝藏冷门选项"（EV最高的冷门）
-       - 宝藏冷门 = 在最高赔率限制下，EV最高的冷门投注选项
-    ② 再用高概率选项（P≥50%，比如总进球0+1球复式）和宝藏冷门串关
-       - 高概率选项提升整体中奖概率，冷门选项提升整体赔率
-    ③ 10元预算全压这套组合
+    动态组合方案 v3.4 — 期望值驱动
+    ==============================
+    老大的思路：
+    ① 信号分 → 估算概率 → EV = 概率 × 赔率 → 找EV最高的投注对象
+    ② 高EV优于高赔率：EV=1.0(1%×100倍) > EV=0.5(0.1%×500倍)
+    ③ N串1 = 各场最高EV对象的自然累乘，不做离谱堆倍
+    
+    10元 = 5注：
+      第1注：最高EV的4串1（4场各取EV最高的对象）
+      第2注：次高EV的3串1（不同组合）
+      第3注：2串1
+      第4-5注：单关保底（取剩余高EV对象）
     """
     import itertools as it
-    import math as _m
     
-    BUDGET_YUAN = 10
-    MAX_NOTES = BUDGET_YUAN // 2  # 5注
-    MAX_ODDS = 200  # 最高赔率限制
-    HIGH_PROB_THRESHOLD = 0.50  # 高概率选项门槛：P≥50%
+    BUDGET_NOTES = 5
     
     # 按冷门评分排序，取TOP比赛
     top_matches = sorted(scored, key=lambda x: -x['total'])[:6]
     
-    # 分离冷门候选 vs 高概率候选
-    # 冷门候选：从冷门信号最强的比赛中选（赔率高、EV高）
-    # 高概率候选：P≥50%的复式选项（用于串关提升概率）
-    
-    cold_candidates = []   # 宝藏冷门选项
-    high_prob_bets = []    # 高概率串关选项
-    
+    # 每场比赛的候选投注项（已按EV排序）
+    match_candidates = {}
     for sm in top_matches:
-        mid = sm['match']['match_num_str']
-        match_name = f"{mid} {sm['match']['home']}vs{sm['match']['away']}"
-        recs = sm.get('recs', [])
-        sigs = sm.get('signals', {})
-        total_score = sm['total']
-        
-        # ── 提取冷门候选（EV最高的冷门选项）──
-        cold_bets = []
-        seen_keys = set()
-        for r in recs:
-            play = r.get('play', '')
-            pick = r.get('pick', '')
-            key = f"{play}:{pick}"
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
-            
-            src = r.get('source', '')
-            sig = sigs.get(src, {}).get('score', 0)
-            odds = r.get('odds', 1.0)
-            
-            # 冷门选项：赔率≥5倍（小概率事件），且不超过最高赔率
-            if odds < 5.0 or odds > MAX_ODDS:
-                continue
-            
-            ev, prob = _calc_ev(sig, odds, play)
-            
-            cold_bets.append({
-                'mid': mid,
-                'match': match_name,
-                'play': play,
-                'pick': pick,
-                'odds': odds,
-                'reason': r.get('reason', ''),
-                'signal_score': sig,
-                'prob': prob,
-                'ev': round(ev, 3),
-                'total_score': total_score,
-                'cold_type': r.get('cold_type', ''),
-            })
-        
-        # 按EV降序，选TOP 2个宝藏冷门
-        cold_bets.sort(key=lambda x: -x['ev'])
-        cold_candidates.extend(cold_bets[:2])
-        
-        # ── 提取高概率候选（P≥50%的复式选项）──
-        # 主要来源：总进球0+1球复式（互斥概率之和）
-        ttg = sm['match'].get('ttg', {})
-        ttg_bets = []
-        for goal_num in [0, 1, 2, 3]:
-            ttg_odds = ttg.get(goal_num, 0)
-            if not ttg_odds or ttg_odds > 30:
-                continue
-            # 找到ttg信号分
-            ttg_sig = sigs.get('ttg', {}).get('score', 0)
-            ev_val, prob_val = _calc_ev(ttg_sig, ttg_odds, '总进球')
-            if prob_val > 0:
-                ttg_bets.append({
-                    'mid': mid,
-                    'match': match_name,
-                    'play': '总进球',
-                    'pick': f'{goal_num}球',
-                    'odds': ttg_odds,
-                    'reason': f'{goal_num}球复式',
-                    'signal_score': ttg_sig,
-                    'prob': prob_val,
-                    'ev': round(ev_val, 3),
-                    'total_score': total_score,
-                    'cold_type': '',
-                })
-        
-        # 计算复式概率（0球+1球组合）
-        if len(ttg_bets) >= 2:
-            combo_prob = sum(b['prob'] for b in ttg_bets[:2])
-            if combo_prob >= HIGH_PROB_THRESHOLD:
-                # 高概率复式选项（0球+1球双选）
-                avg_odds = sum(b['odds'] * b['prob'] for b in ttg_bets[:2]) / combo_prob
-                high_prob_bets.append({
-                    'mid': mid,
-                    'match': match_name,
-                    'bets': ttg_bets[:2],
-                    'count': 2,
-                    'prob': combo_prob,
-                    'avg_odds': avg_odds,
-                    'total_score': total_score,
-                })
-        
-        # 0+1+2球三选
-        if len(ttg_bets) >= 3:
-            combo_prob3 = sum(b['prob'] for b in ttg_bets[:3])
-            if combo_prob3 >= HIGH_PROB_THRESHOLD:
-                avg_odds3 = sum(b['odds'] * b['prob'] for b in ttg_bets[:3]) / combo_prob3
-                high_prob_bets.append({
-                    'mid': mid,
-                    'match': match_name,
-                    'bets': ttg_bets[:3],
-                    'count': 3,
-                    'prob': combo_prob3,
-                    'avg_odds': avg_odds3,
-                    'total_score': total_score,
-                })
-        
-        # 胜平负稳方向也可作为高概率选项（赔率1.3-2.5，概率高）
-        had_h = sm['match'].get('had_h', 0)
-        had_d = sm['match'].get('had_d', 0)
-        had_a = sm['match'].get('had_a', 0)
-        had_sig = sigs.get('had', {}).get('score', 0)
-        
-        # 主胜（热门）高概率
-        if had_h and 1.3 <= had_h <= 2.5:
-            ev_val, prob_val = _calc_ev(had_sig, had_h, '胜平负')
-            if prob_val >= HIGH_PROB_THRESHOLD:
-                high_prob_bets.append({
-                    'mid': mid,
-                    'match': match_name,
-                    'bets': [{
-                        'mid': mid, 'match': match_name,
-                        'play': '胜平负', 'pick': '主胜',
-                        'odds': had_h, 'reason': '主队热门',
-                        'signal_score': had_sig, 'prob': prob_val,
-                        'ev': round(ev_val, 3), 'total_score': total_score, 'cold_type': '',
-                    }],
-                    'count': 1,
-                    'prob': prob_val,
-                    'avg_odds': had_h,
-                    'total_score': total_score,
-                })
+        best = _pick_best_bets_per_match(sm)
+        if best:
+            match_candidates[sm['match']['match_num_str']] = best
     
-    # ── 构建串关组合 ──
-    # 策略：宝藏冷门选项 + 高概率选项 组成 2串1
+    if len(match_candidates) < 2:
+        return {'label': '⚠️ 动态方案', 'parts': [], 'total_cost': 0,
+                'note': '可投注比赛不足2场'}
     
-    if not cold_candidates:
-        return {'label': '⚠️ 博冷方案', 'parts': [], 'total_cost': 0,
-                'note': '今日无有效冷门选项'}
+    mids = list(match_candidates.keys())
     
-    if not high_prob_bets:
-        return {'label': '⚠️ 博冷方案', 'parts': [], 'total_cost': 0,
-                'note': '今日无高概率串关选项（P≥50%）'}
+    # ═══════════════════════════════════════════
+    # 木桶原则：混合过关关数上限 = 所选玩法中关数上限最低的那个
+    # 官方规则：
+    #   比分 → 最多4关（31种选项）
+    #   半全场 → 最多4关
+    #   总进球 → 最多6关（8种选项）
+    #   胜平负/让球胜平负 → 最多8关
+    # ═══════════════════════════════════════════
     
-    # 宝藏冷门按EV降序
-    cold_candidates.sort(key=lambda x: -x['ev'])
-    # 高概率选项按概率降序
-    high_prob_bets.sort(key=lambda x: -x['prob'])
+    PLAY_MAX_GUAN = {
+        '比分': 4,
+        '半全场': 4,
+        '总进球': 6,
+        '胜平负': 8,
+        '让球胜平负': 8,
+    }
     
-    def scheme_key_from_bets(cold_bet, high_set):
-        items = [(cold_bet['mid'], cold_bet['play'], cold_bet['pick'])]
-        for b in high_set['bets']:
-            items.append((b['mid'], b['play'], b['pick']))
-        return frozenset(items)
+    def get_max_guan(bets):
+        """木桶原则：取所有投注项中关数上限最低的"""
+        min_guan = 8
+        for b in bets:
+            play = b.get('play', '')
+            guan = PLAY_MAX_GUAN.get(play, 8)
+            if guan < min_guan:
+                min_guan = guan
+        return min_guan
+    
+    # ── 枚举所有组合 ──
+    
+    all_combos = []  # [(bets, type, ev_prod, odds_prod, prob_prod)]
+    
+    # 辅助
+    def top_all(mid, n=2):
+        return match_candidates[mid][:n]
+    
+    def top_non_score(mid):
+        for b in match_candidates[mid]:
+            if b['play'] != '比分':
+                return b
+        return None
+    
+    # 单关
+    for mid in mids:
+        for bet in top_all(mid, 3):
+            all_combos.append(([bet], '单关', bet['ev'], bet['odds'], bet['prob']))
+    
+    # 2串1：混合组合（需满足木桶原则：至少2关）
+    if len(mids) >= 2:
+        for m1, m2 in it.combinations(mids, 2):
+            for b1 in top_all(m1, 2):
+                for b2 in top_all(m2, 2):
+                    if b1['mid'] != b2['mid']:
+                        max_guan = get_max_guan([b1, b2])
+                        if max_guan < 2:
+                            continue
+                        ev, odds, prob = _combo_ev([b1, b2])
+                        # 过滤：组合概率<1%
+                        if prob >= 0.01:
+                            all_combos.append(([b1, b2], '2串1', ev, odds, prob))
+    
+    # 3串1（需满足木桶原则：至少3关）
+    if len(mids) >= 3:
+        for m1, m2, m3 in it.combinations(mids, 3):
+            for b1 in top_all(m1, 2):
+                for b2 in top_all(m2, 2):
+                    for b3 in top_all(m3, 2):
+                        if len({b1['mid'], b2['mid'], b3['mid']}) == 3:
+                            max_guan = get_max_guan([b1, b2, b3])
+                            if max_guan < 3:
+                                continue
+                            ev, odds, prob = _combo_ev([b1, b2, b3])
+                            if prob >= 0.01:
+                                all_combos.append(([b1, b2, b3], '3串1', ev, odds, prob))
+    
+    # 4串1（需满足木桶原则：至少4关 — 含比分/半全场则不能4串1）
+    if len(mids) >= 4:
+        for m1, m2, m3, m4 in it.combinations(mids, 4):
+            for b1 in top_all(m1, 1):
+                for b2 in top_all(m2, 1):
+                    for b3 in top_all(m3, 1):
+                        for b4 in top_all(m4, 1):
+                            if len({b1['mid'], b2['mid'], b3['mid'], b4['mid']}) == 4:
+                                max_guan = get_max_guan([b1, b2, b3, b4])
+                                if max_guan < 4:
+                                    continue
+                                ev, odds, prob = _combo_ev([b1, b2, b3, b4])
+                                if prob >= 0.01:
+                                    all_combos.append(([b1, b2, b3, b4], '4串1', ev, odds, prob))
+    
+    if not all_combos:
+        return {'label': '⚠️ 动态方案', 'parts': [], 'total_cost': 0, 'note': '无有效组合'}
+    
+    # ── 按EV乘积降序排列 ──
+    all_combos.sort(key=lambda x: -x[2])  # x[2] = ev_product
+    
+    # ── 分配5注：结构化保证玩法多样性 ──
+    def combo_key(bets):
+        return frozenset((b['mid'], b['play'], b['pick']) for b in bets)
+    
+    # 去重
+    seen_combos = set()
+    dedup_combos = []
+    for bets, ctype, ev_prod, odds_prod, prob_prod in all_combos:
+        ck = combo_key(bets)
+        if ck not in seen_combos:
+            seen_combos.add(ck)
+            dedup_combos.append((bets, ctype, ev_prod, odds_prod, prob_prod))
+    all_combos = dedup_combos
     
     plan_parts = []
-    used_notes = 0
-    used_keys = set()
+    used_combo_keys = set()
     
-    def make_part_cold(cold_bet, high_set, notes_used):
-        """生成一注：宝藏冷门 + 高概率选项 串关"""
-        total_notes = high_set['count']  # 高概率复式的注数
-        cost = total_notes * 2
-        
-        # 组合概率 = 冷门概率 × 高概率复式概率
-        combo_prob = cold_bet['prob'] * high_set['prob']
-        combo_odds = cold_bet['odds'] * high_set['avg_odds']
-        combo_ev = combo_prob * combo_odds
-        
-        guan = 2  # 2串1（冷门1场 + 高概率1场）
-        ctype = f"2串1"
-        if high_set['count'] > 1:
-            ctype += f"(复{high_set['count']}注)"
-        
-        # 展示所有投注项
-        all_bets = [cold_bet] + high_set['bets']
-        
-        return {
-            'type': ctype + ' 博冷',
-            'bets': all_bets,
-            'groups': {
-                cold_bet['mid']: [cold_bet],
-                high_set['mid']: high_set['bets'],
-            },
-            'cost': cost,
-            'ev_product': round(combo_ev, 3),
-            'odds_x': round(combo_odds, 1),
-            'ret': round(2 * combo_odds, 1),
-            'note': f"{ctype} | EV={combo_ev:.2f} | P={combo_prob:.2%} | {total_notes}注{cost}元 | 冷门:{cold_bet['pick']}@{cold_bet['odds']}×高概率P={high_set['prob']:.1%}"
-        }, total_notes
+    def has_non_score(bets):
+        return any(b['play'] != '比分' for b in bets)
     
-    # 选TOP 1-2个宝藏冷门选项，和高概率选项串关
-    for cold_bet in cold_candidates[:2]:
-        for high_set in high_prob_bets:
-            # 同一场比赛不能出现在同一注里
-            if cold_bet['mid'] == high_set['mid']:
-                continue
-            sk = scheme_key_from_bets(cold_bet, high_set)
-            if sk in used_keys:
-                continue
-            notes_needed = high_set['count']
-            if used_notes + notes_needed > MAX_NOTES:
-                continue
-            
-            part, notes_used = make_part_cold(cold_bet, high_set, notes_needed)
-            plan_parts.append(part)
-            used_notes += notes_used
-            used_keys.add(sk)
-            break  # 每个冷门选项只配一个高概率选项
-        
-        if used_notes >= MAX_NOTES:
-            break
+    def all_non_score(bets):
+        return all(b['play'] != '比分' for b in bets)
     
-    if not plan_parts:
-        return {'label': '⚠️ 博冷方案', 'parts': [], 'total_cost': 0,
-                'note': '无法构建有效串关组合（冷门和高概率不在不同场次）'}
+    def add_part(bets, ctype, ev_prod, odds_prod, prob_prod):
+        ck = combo_key(bets)
+        if ck in used_combo_keys:
+            return False
+        plan_parts.append({
+            'type': ctype,
+            'bets': bets,
+            'cost': 2,
+            'ev_product': round(ev_prod, 3),
+            'odds_x': round(odds_prod, 1),
+            'ret': round(2 * odds_prod, 1),
+            'note': f"{ctype} | EV={ev_prod:.2f} | P={prob_prod:.3%} | {'×'.join(b['play']+'('+str(b['odds'])+')' for b in bets)}"
+        })
+        used_combo_keys.add(ck)
+        return True
+    
+    # 第1注：最高EV的4串1或3串1
+    for bets, ctype, ev_prod, odds_prod, prob_prod in all_combos:
+        if ctype in ('4串1', '3串1'):
+            if add_part(bets, ctype, ev_prod, odds_prod, prob_prod):
+                break
+    
+    # 第2注：必须包含非比分玩法
+    for bets, ctype, ev_prod, odds_prod, prob_prod in all_combos:
+        if ctype in ('3串1', '2串1') and has_non_score(bets):
+            if add_part(bets, ctype, ev_prod, odds_prod, prob_prod):
+                break
+    
+    # 第3注：2串1（优先非比分×非比分）
+    for bets, ctype, ev_prod, odds_prod, prob_prod in all_combos:
+        if ctype == '2串1' and all_non_score(bets):
+            if add_part(bets, ctype, ev_prod, odds_prod, prob_prod):
+                break
+    if len(plan_parts) < 3:
+        for bets, ctype, ev_prod, odds_prod, prob_prod in all_combos:
+            if ctype == '2串1' and has_non_score(bets):
+                if add_part(bets, ctype, ev_prod, odds_prod, prob_prod):
+                    break
+    if len(plan_parts) < 3:
+        for bets, ctype, ev_prod, odds_prod, prob_prod in all_combos:
+            if ctype == '2串1':
+                if add_part(bets, ctype, ev_prod, odds_prod, prob_prod):
+                    break
+    
+    # 第4注：单关非比分
+    for bets, ctype, ev_prod, odds_prod, prob_prod in all_combos:
+        if ctype == '单关' and bets[0]['play'] != '比分':
+            if add_part(bets, ctype, ev_prod, odds_prod, prob_prod):
+                break
+    
+    # 第5注：单关任意
+    for bets, ctype, ev_prod, odds_prod, prob_prod in all_combos:
+        if ctype == '单关':
+            if add_part(bets, ctype, ev_prod, odds_prod, prob_prod):
+                break
     
     total_cost = sum(p['cost'] for p in plan_parts)
     
@@ -1209,17 +883,19 @@ def _gen_smart_plan(scored):
     max_ev = max((p.get('ev_product', 0) for p in plan_parts), default=0)
     max_odds = max((p['odds_x'] for p in plan_parts), default=0)
     if max_ev >= 2.0:
-        label = '🔥🔥🔥 高期望博冷'
+        label = '🔥🔥🔥 高期望方案'
+    elif max_ev >= 1.0:
+        label = '🔥🔥 正期望方案'
     elif max_ev >= 0.5:
-        label = '🔥🔥 博冷方案'
+        label = '🔥 中等期望方案'
     else:
-        label = '🔥 博冷方案'
+        label = '📊 保守方案'
     
     return {
         'label': label,
         'parts': plan_parts,
         'total_cost': total_cost,
-        'note': f"宝藏冷门+高概率串关 | {len(plan_parts)}组/{total_cost}元 | 最高EV={max_ev:.2f} | 最高倍={max_odds}x"
+        'note': f"EV驱动 | {len(plan_parts)}注/{total_cost}元 | 最高EV={max_ev:.2f} | 最高倍={max_odds}x"
     }
 
 def gen_plan(scored):
@@ -1229,13 +905,10 @@ def gen_plan(scored):
     
     smart = _gen_smart_plan(avail)
     
-    # 奖金限额检查（从groups中提取关数）
+    # 奖金限额检查
     max_odds = max((p.get('odds_x', 0) for p in smart.get('parts', [])), default=0)
     notes = smart.get('parts', [])
-    guan_count = 0
-    for p in notes:
-        groups = p.get('groups', {})
-        guan_count = max(guan_count, len(groups))
+    guan_count = max((len(p['bets']) for p in notes), default=0) if notes else 0
     
     bonus_limit = {1: '10万', 2: '20万', 3: '20万', 4: '50万', 5: '50万', 6: '100万'}
     limit_text = bonus_limit.get(guan_count, '100万')
@@ -1251,7 +924,7 @@ def gen_plan(scored):
         'bonus_limit': limit_text,
         'max_bet_multiplier': bet_multiplier,
         'single_ticket_limit': 6000,
-        'rule_note': '同场不同玩法不可混串 | 木桶原则关数限制 | 倍投2-50倍 | 复式投注'
+        'rule_note': '同场不同玩法不可混串 | 木桶原则关数限制 | 倍投2-50倍'
     }
     
     return {
@@ -1265,7 +938,7 @@ def gen_plan(scored):
 
 def print_analysis(scored,kb):
     print("="*80)
-    print(f"   🌍 世界杯冷门预测 v4.0 | {datetime.now().strftime('%m-%d %H:%M')} | 知识库:{len(kb.get('matches',[]))}场/{len(kb.get('teams_stats',kb.get('teams',{})))}队")
+    print(f"   🌍 世界杯冷门预测 v3.2 | {datetime.now().strftime('%m-%d %H:%M')} | 知识库:{len(kb.get('matches',[]))}场/{len(kb.get('teams',{}))}队")
     print("="*80)
     for i,sm in enumerate(sorted(scored,key=lambda x:-x['total']),1):
         m=sm['match']
@@ -1286,7 +959,7 @@ def print_analysis(scored,kb):
                     short=ct.split('-')[1] if '-' in ct else ct
                     parts.append(f"{short}:{cs:.1f}分")
             if parts:print(f"   {' | '.join(parts)}")
-        print(f"\n  📊 十二维信号:")
+        print(f"\n  📊 八维信号:")
         for nm,si in sm['signals'].items():
             if nm=='cross':continue
             bar='█'*min(int(si['score']/5),20)+'░'*max(20-int(si['score']/5),0)
@@ -1298,7 +971,7 @@ def print_analysis(scored,kb):
     print(f"\n{'='*80}\n")
 
 def print_plan(plan):
-    print("="*80);print("        🎯 今日冷门方案 v4.0");print("="*80)
+    print("="*80);print("        🎯 今日冷门方案 v3.4");print("="*80)
     if'error'in plan:print(f"  ⚠️ {plan['error']}");return
     total_all=0
     for p in plan.get('plans',[]):
@@ -1309,25 +982,13 @@ def print_plan(plan):
         total_all+=p['total_cost']
         for i, part in enumerate(p.get('parts',[]), 1):
             typ=part['type']
-            cost = part.get('cost', 2)
-            # 按mid分组显示，标出复式
-            groups = part.get('groups', {})
-            print(f"\n  ┌ 📌 第{i}组:{typ} | {part['note']}")
-            for mid, bets in groups.items():
-                if len(bets) == 1:
-                    b = bets[0]
-                    print(f"  │ {b['match']}")
-                    print(f"  │   [{b['play']}]{b['pick']}@{b['odds']} P={b.get('prob',0):.1%} EV={b.get('ev',0):.2f} {b['reason']}")
-                else:
-                    # 复式多选
-                    first = bets[0]
-                    print(f"  │ {first['match']} 【复式{len(bets)}选】")
-                    for b in bets:
-                        print(f"  │   [{b['play']}]{b['pick']}@{b['odds']} P={b.get('prob',0):.1%} EV={b.get('ev',0):.2f}")
-                    # 该场总概率
-                    field_prob = sum(b.get('prob', 0) for b in bets)
-                    print(f"  │   → 该场命中概率:{field_prob:.1%}")
-            print(f"  │ 💰 {cost}元 | ~{part['odds_x']}x | 预估回报:{part['ret']}元")
+            icon={'单关':'⚡','2串1':'🔗','3串1':'⛓️','4串1':'💥'}.get(typ,'📌')
+            ev = part.get('ev_product', 0)
+            print(f"\n  ┌ {icon} 第{i}注:{typ}")
+            print(f"  │ {part['note']} | 2元 | ~{part['odds_x']}x | 回{part['ret']}元")
+            for b in part['bets']:
+                print(f"  │ {b['match']}")
+                print(f"  │   [{b['play']}]{b['pick']}@{b['odds']} P={b.get('prob',0):.1%} EV={b.get('ev',0):.2f} {b['reason']}")
         print(f"\n  📋 {label}合计:{p['total_cost']}元")
     
     # 规则合规
@@ -1341,7 +1002,7 @@ def print_plan(plan):
                 print(f"  🔢 建议倍投：{mult}倍 → 投入{total_all*mult}元 | 单票≤6000元")
             print(f"  ⚠️ {comp.get('rule_note','')}")
     
-    print(f"\n  💰 总投入:{total_all}元 | ⚠️ 每注2元 EV驱动+复式 | 理性投注！");print("="*80)
+    print(f"\n  💰 总投入:{total_all}元 | ⚠️ 每注2元 EV驱动 | 理性投注！");print("="*80)
 
 def calc_trigger_time(matches):
     """计算最优触发时间：取最早开赛时间T，返回T-1小时。如果T-1h已过则返回None（立即运行）"""
@@ -1378,31 +1039,6 @@ def main():
             added=update_kb_results(kb, new_results)
             if added>0:save_kb(kb)
     except: pass
-    # v4.0: 加载高阶统计数据
-    try:
-        if 'teams_stats' not in kb or not kb['teams_stats']:
-            kb['teams_stats'] = fetch_team_stats()
-            save_kb(kb)
-            print("📊 球队高阶统计数据已加载")
-    except: pass
-    # v4.0: 生成H2H数据
-    try:
-        if 'h2h' not in kb or not kb['h2h']:
-            kb['h2h'] = fetch_h2h_kb(kb)
-            if kb['h2h']:
-                save_kb(kb)
-                print(f"📋 历史交锋数据已生成({len(kb['h2h'])}对)")
-    except: pass
-    # v4.0: 赛事阶段识别（根据已赛场次判断）
-    try:
-        played = len([m for m in kb.get('matches', []) if '2026-06' in m.get('date', '')])
-        if played >= 40:
-            kb['tournament_stage'] = 'knockout'
-        elif played >= 30:
-            kb['tournament_stage'] = 'group_final'
-        else:
-            kb['tournament_stage'] = 'group'
-    except: pass
     try:
         raw=fetch_sporttery()
         matches=parse_matches(raw)
@@ -1431,29 +1067,16 @@ def main():
         if dates:today_m=[m for m in wc_selling if m.get('match_date')==dates[0]]
         print(f"⚠️ 今日无世界杯，用{dates[0]}的比赛")
     print(f"📊 获取{len(today_m)}场世界杯在售比赛\n")
-    # 保存当前赔率快照（时间序列：append而非覆盖）
+    # 保存当前赔率快照（供下次变动追踪）
     snapshots = kb.get('odds_snapshots', {})
-    now_str = datetime.now().strftime('%m-%d %H:%M')
     for m in matches:
         mid = m.get('match_id', '')
         if mid:
-            new_snap = {
+            snapshots[mid] = {
                 'had_h': m.get('had_h'), 'had_d': m.get('had_d'), 'had_a': m.get('had_a'),
                 'hhad_h': m.get('hhad_h'), 'hhad_d': m.get('hhad_d'), 'hhad_a': m.get('hhad_a'),
-                'hhad_line': m.get('hhad_line'), 'time': now_str
+                'hhad_line': m.get('hhad_line'), 'time': datetime.now().strftime('%m-%d %H:%M')
             }
-            existing = snapshots.get(mid)
-            if isinstance(existing, list):
-                # 时间序列模式：append，保留最近5次
-                existing.append(new_snap)
-                if len(existing) > 5:
-                    existing = existing[-5:]
-                snapshots[mid] = existing
-            elif isinstance(existing, dict):
-                # 旧格式→转换为列表
-                snapshots[mid] = [existing, new_snap]
-            else:
-                snapshots[mid] = [new_snap]  # 新比赛，初始化列表
     kb['odds_snapshots'] = snapshots
     kb['patterns']['updated'] = datetime.now().strftime('%Y-%m-%d')
     save_kb(kb)

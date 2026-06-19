@@ -17,7 +17,6 @@ SMTP_CONFIG = {
 
 MODELS = [
     ("worldcup_model.py", "🔥 博冷"),
-    ("worldcup_model_stable.py", "🛡️ 稳健"),
     ("worldcup_model_win.py", "💎 必胜"),
 ]
 
@@ -175,7 +174,7 @@ def main():
     html_body, is_skip = build_email(all_outputs)
 
     today = datetime.now().strftime("%m-%d")
-    subject = f"⚽ 世界杯方案 {today} | v4.0 博冷+稳健+必胜"
+    subject = f"⚽ 世界杯方案 {today} | v5.0 博冷+必胜"
 
     send_email(subject, html_body)
     print(f"✅ 已发送到 {SMTP_CONFIG['to']}")
