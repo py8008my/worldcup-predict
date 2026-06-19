@@ -676,53 +676,77 @@ def _calc_ev(signal_score, odds, play_type=''):
 
 def _pick_best_bets_per_match(scored_match, top_per_play=4):
     """
-    每场比赛的最优投注选择（必胜型：仅总进球+胜平负）
-    ================================================
-    必胜策略极简：只用总进球和胜平负两种玩法。
-    总进球要全量覆盖（0/1/2/3球都纳入候选），胜平负选最稳方向。
-    每个玩法取top_per_play个候选（必胜型取更多，支持全覆盖）。
+    必胜型：只选热门方向，避开冷门选项
+    =====================================
+    核心逻辑（小弟设计）：
+    - 确保投注选项里没有冷门选项
+    - 如果冷门信号弱（评分<20）→ 正常选，按概率优先
+    - 如果冷门信号中等（20-35）→ 只选热门方向（主胜/大球）
+    - 如果冷门信号强（≥35）→ 整场避开（不选这场比赛）
     """
+    match_total_score = scored_match.get('total', 0)
     recs = scored_match.get('recs', [])
+    sigs = scored_match.get('signals', {})
     
-    # 必胜型：只用总进球和胜平负
+    # ── 冷门信号强度判断 ──
+    # 冷门评分 ≥ 35 → 整场避开
+    if match_total_score >= 35:
+        return []
+    
+    # 冷门评分 20-34 → 只选热门方向
+    hot_only = (20 <= match_total_score < 35)
+    
+    # 热门方向判断：主胜赔率小 = 主队热门
+    had_h = scored_match['match'].get('had_h', 0)
+    had_a = scored_match['match'].get('had_a', 0)
+    
+    # 必胜型：只用总进球+胜平负
     allowed = {'总进球', '胜平负'}
     recs = [r for r in recs if r.get('play', '') in allowed]
     
-    # 按玩法分组
     by_play = {}
     seen = set()
     for r in recs:
         play = r.get('play', '')
-        key = f"{play}:{r['pick']}"
+        pick = r.get('pick', '')
+        key = f"{play}:{pick}"
         if key in seen:
             continue
         seen.add(key)
         
         src = r.get('source', '')
-        sig = scored_match.get('signals', {}).get(src, {}).get('score', 0)
+        sig = sigs.get(src, {}).get('score', 0)
         odds = r.get('odds', 1.0)
         
-        # 赔率过滤（必胜型：总进球只取低球0-3，赔率<30）
+        # 赔率过滤：必胜型不追极端高赔
         if play == '总进球':
-            # 只取0/1/2/3球，赔率<30倍
+            # 只取0-3球（场均进球合理范围）
             try:
-                goal_num = int(r['pick'].replace('球', ''))
-                if goal_num > 3 or odds < 1.5 or odds > 30:
+                goal_num = int(pick.replace('球', ''))
+                if goal_num > 3 or odds < 1.5:
                     continue
             except:
                 continue
         elif play == '胜平负':
-            # 取最稳方向：赔率1.5-5.0
-            if odds < 1.3 or odds > 5.0:
+            if odds < 1.3:
                 continue
-        else:
-            continue
+            # 冷门信号中等时，只选热门方向（主胜）
+            if hot_only:
+                # 热门方向 = 主胜（主队赔率更低）
+                if had_h and had_a:
+                    if pick == '负' and had_h < had_a:
+                        continue  # 主队是热门，跳过客胜
+                    if pick == '平':
+                        continue  # 有冷门信号时跳过平局
+                else:
+                    if pick in ('负', '平'):
+                        continue
         
         ev, prob = _calc_ev(sig, odds, play)
         bet = {
             'mid': scored_match['match']['match_num_str'],
             'match': f"{scored_match['match']['match_num_str']} {scored_match['match']['home']}vs{scored_match['match']['away']}",
-            'play': play, 'pick': r['pick'], 'odds': odds,
+            'play': play, 'pick': pick, 'odds': odds,
             'reason': r.get('reason', ''),
             'signal_score': sig,
             'prob': prob,
@@ -762,40 +786,43 @@ def _combo_ev(bets):
 
 def _gen_smart_plan(scored):
     """
-    必胜组合方案 v4.0-win — 概率为王 + 复式全覆盖
-    ==============================================
-    核心策略：
-    ① 一组必胜方案：10元全压，不拆分
-    ② 组合目标P≥50%（是的，一半以上把握）
-    ③ 仅总进球+胜平负，总进球0-3球全覆盖
-    ④ 赔率≤30倍，稳扎稳打
-    ⑤ 概率排序优先，不追求EV
+    必胜方案 v5.0 — 避开冷门，优先串关，宁缺毋滥
+    ===============================================
+    核心思路（小弟设计）：
+    ① 用12维信号过滤掉冷门信号强的比赛（≥35分整场避开）
+    ② 只选热门方向的选项（总进球0-3球 + 主胜/大球方向）
+    ③ 优先串关（2串1或3串1），通过多场高概率叠乘获取最大收益
+    ④ 宁缺毋滥：今天没有足够把握就少投或不投
+    ⑤ 不限赔率上下限，按概率×赔率性价比选择
     """
     import itertools as it
     import math as _m
     
     BUDGET_YUAN = 10
     MAX_NOTES = BUDGET_YUAN // 2  # 5注
-    WIN_TARGET_PROB = 0.25  # 必胜目标P≥25%（放宽，因为50%在5注预算内很难达到）
-    WIN_MAX_ODDS = 30       # 赔率上限30倍
     
     # 按冷门评分排序，取TOP比赛
-    top_matches = sorted(scored, key=lambda x: -x['total'])[:6]
+    # 注意：这里的 _pick_best_bets_per_match 已经会过滤掉冷门信号≥35的比赛
+    top_matches = sorted(scored, key=lambda x: -x['total'])[:8]
     
-    # 每场比赛的候选投注项（仅总进球+胜平负，每个玩法TOP4）
+    # 每场比赛的候选投注项（已过滤冷门方向）
     match_candidates = {}
     for sm in top_matches:
         best = _pick_best_bets_per_match(sm, top_per_play=4)
-        if best:
+        if best:  # 冷门信号≥35的比赛会返回空列表，自动被过滤
             match_candidates[sm['match']['match_num_str']] = best
     
     if len(match_candidates) < 2:
-        return {'label': '⚠️ 必胜方案', 'parts': [], 'total_cost': 0,
-                'note': '可投注比赛不足2场'}
+        return {
+            'label': '💎 今日宁缺毋滥',
+            'parts': [],
+            'total_cost': 0,
+            'note': '今日可投注比赛不足（冷门信号强，建议观望）'
+        }
     
     mids = list(match_candidates.keys())
     
-    # 必胜型只用总进球+胜平负，关数上限很宽松
+    # 木桶原则
     PLAY_MAX_GUAN = {'总进球': 6, '胜平负': 8}
     
     def get_max_guan(bets):
@@ -807,7 +834,6 @@ def _gen_smart_plan(scored):
         return min_guan
     
     # ── 为每场比赛生成"选择集" ──
-    # 必胜型特色：总进球可以做"全覆盖"选择集（0+1+2+3球全选）
     def build_selection_sets(mid):
         cands = match_candidates[mid]
         by_play = {}
@@ -819,37 +845,35 @@ def _gen_smart_plan(scored):
         
         sets = []
         for play, bets in by_play.items():
-            bets = bets[:4]  # 最多取TOP4
+            bets = bets[:4]
             # 单选
             for b in bets:
                 sets.append({
                     'bets': [b], 'count': 1,
                     'prob': b['prob'], 'avg_odds': b['odds'], 'play': play,
                 })
-            # 双选
+            # 双选（总进球0+1球，胜平负最稳2方向）
             if len(bets) >= 2:
                 for i, j in it.combinations(range(len(bets)), 2):
                     b1, b2 = bets[i], bets[j]
                     p = min(b1['prob'] + b2['prob'], 1.0)
-                    ao = (b1['odds'] * b1['prob'] + b2['odds'] * b2['prob']) / p if p > 0 else (b1['odds'] + b2['odds']) / 2
+                    if p > 0:
+                        ao = (b1['odds'] * b1['prob'] + b2['odds'] * b2['prob']) / p
+                    else:
+                        ao = (b1['odds'] + b2['odds']) / 2
                     sets.append({
                         'bets': [b1, b2], 'count': 2,
                         'prob': p, 'avg_odds': ao, 'play': play,
                     })
             # 三选
-            if len(bets) >= 3:
+            if len(bets) >= 3 and play == '总进球':
                 p = min(sum(b['prob'] for b in bets[:3]), 1.0)
-                ao = sum(b['odds'] * b['prob'] for b in bets[:3]) / p if p > 0 else sum(b['odds'] for b in bets[:3]) / 3
+                if p > 0:
+                    ao = sum(b['odds'] * b['prob'] for b in bets[:3]) / p
+                else:
+                    ao = sum(b['odds'] for b in bets[:3]) / 3
                 sets.append({
                     'bets': bets[:3], 'count': 3,
-                    'prob': p, 'avg_odds': ao, 'play': play,
-                })
-            # 四选（全覆盖：总进球0+1+2+3球）
-            if len(bets) >= 4 and play == '总进球':
-                p = min(sum(b['prob'] for b in bets[:4]), 1.0)
-                ao = sum(b['odds'] * b['prob'] for b in bets[:4]) / p if p > 0 else sum(b['odds'] for b in bets[:4]) / 4
-                sets.append({
-                    'bets': bets[:4], 'count': 4,
                     'prob': p, 'avg_odds': ao, 'play': play,
                 })
         return sets
@@ -883,9 +907,7 @@ def _gen_smart_plan(scored):
                     prob_prod *= s['prob']
                     odds_prod *= s['avg_odds']
                 
-                if prob_prod < 0.01:
-                    continue
-                if odds_prod > WIN_MAX_ODDS:
+                if prob_prod < 0.05:  # 必胜型概率门槛提高到5%
                     continue
                 
                 ev = prob_prod * odds_prod
@@ -896,16 +918,21 @@ def _gen_smart_plan(scored):
                 
                 all_schemes.append((groups, ev, odds_prod, prob_prod, total_notes, guan_count))
     
-    # 单关（保底）
+    # 单关（保底，只取概率最高的）
     for mid in mids:
         for s in mid_selections[mid]:
             if s['count'] == 1:
                 b = s['bets'][0]
-                if b['odds'] <= WIN_MAX_ODDS:
+                if b['prob'] >= 0.20:  # 单关要求P≥20%
                     all_schemes.append(({mid: [b]}, b['ev'], b['odds'], b['prob'], 1, 1))
     
     if not all_schemes:
-        return {'label': '⚠️ 必胜方案', 'parts': [], 'total_cost': 0, 'note': '无有效组合'}
+        return {
+            'label': '💎 今日宁缺毋滥',
+            'parts': [],
+            'total_cost': 0,
+            'note': '今日无有效必胜组合，建议观望'
+        }
     
     # ── 去重 ──
     def scheme_key(groups):
@@ -924,9 +951,9 @@ def _gen_smart_plan(scored):
             dedup.append(s)
     all_schemes = dedup
     
-    # ═══════════════════════════════════════════
-    # 必胜方案分配：概率最高组合优先，10元全压
-    # ═══════════════════════════════════════════
+    # ── 必胜方案分配：概率×赔率性价比优先，优先串关 ──
+    # 性价比 = prob × log(odds)：概率高且赔率合理
+    all_schemes.sort(key=lambda x: -(x[3] * _m.log(max(x[2], 1.5), 2)))
     
     def make_part(groups, ev, odds, prob, notes, guan_count, label_suffix=''):
         flat = []
@@ -951,40 +978,27 @@ def _gen_smart_plan(scored):
     used_notes = 0
     used_keys = set()
     
-    # 按概率降序排列
-    all_schemes.sort(key=lambda x: -x[3])
-    
-    # 第1组：概率最高的串关（优先2串1），占预算大头
-    for groups, ev, odds, prob, notes, gc in all_schemes:
-        sk = scheme_key(groups)
-        if sk in used_keys:
-            continue
-        if notes <= MAX_NOTES and gc >= 2:
-            p = make_part(groups, ev, odds, prob, notes, gc, ' 必胜')
-            plan_parts.append(p)
-            used_notes += notes
-            used_keys.add(sk)
-            break
-    
-    # 如果没选到串关，退而取概率最高的任意方案
-    if not plan_parts:
-        for groups, ev, odds, prob, notes, gc in all_schemes:
-            sk = scheme_key(groups)
-            if notes <= MAX_NOTES:
-                p = make_part(groups, ev, odds, prob, notes, gc, ' 必胜')
-                plan_parts.append(p)
-                used_notes += notes
-                used_keys.add(sk)
-                break
-    
-    # 剩余预算选第二高概率组合
+    # 选最高性价比的串关
     for groups, ev, odds, prob, notes, gc in all_schemes:
         if used_notes >= MAX_NOTES:
             break
         sk = scheme_key(groups)
         if sk in used_keys:
             continue
-        if notes <= MAX_NOTES - used_notes:
+        if notes <= MAX_NOTES - used_notes and gc >= 2:
+            p = make_part(groups, ev, odds, prob, notes, gc, ' 必胜')
+            plan_parts.append(p)
+            used_notes += notes
+            used_keys.add(sk)
+    
+    # 若还有剩余预算，加单关保底
+    for groups, ev, odds, prob, notes, gc in all_schemes:
+        if used_notes >= MAX_NOTES:
+            break
+        sk = scheme_key(groups)
+        if sk in used_keys:
+            continue
+        if notes <= MAX_NOTES - used_notes and gc == 1:
             p = make_part(groups, ev, odds, prob, notes, gc, ' 必胜')
             plan_parts.append(p)
             used_notes += notes
@@ -993,14 +1007,14 @@ def _gen_smart_plan(scored):
     total_cost = sum(p['cost'] for p in plan_parts)
     
     # 标签
-    max_prob = max((float(p.get('note', 'P=0%').split('P=')[1].split('%')[0]) / 100 
-                    for p in plan_parts), default=0)
+    max_prob = max((float(p.get('note', 'P=0%').split('P=')[1].split('%')[0]) / 100
+                    for p in plan_parts if 'P=' in p.get('note', '')), default=0)
     
-    if max_prob >= 0.45:
+    if max_prob >= 0.40:
         label = '💎💎💎 必胜方案'
-    elif max_prob >= 0.30:
-        label = '💎💎 高胜率方案'
     elif max_prob >= 0.25:
+        label = '💎💎 高胜率方案'
+    elif max_prob >= 0.15:
         label = '💎 优势方案'
     else:
         label = '📊 保底方案'
@@ -1009,7 +1023,7 @@ def _gen_smart_plan(scored):
         'label': label,
         'parts': plan_parts,
         'total_cost': total_cost,
-        'note': f"概率为王 | {len(plan_parts)}组/{total_cost}元 | P={max_prob:.1%} | 赔率≤{WIN_MAX_ODDS}x"
+        'note': f"避冷门串关 | {len(plan_parts)}组/{total_cost}元 | 最高P={max_prob:.1%}"
     }
 
 def gen_plan(scored):

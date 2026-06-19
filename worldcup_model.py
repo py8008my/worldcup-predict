@@ -958,281 +958,245 @@ def _combo_ev(bets):
 
 def _gen_smart_plan(scored):
     """
-    动态组合方案 v3.5 — 期望值驱动 + 复式投注 + 双组策略
-    ====================================================
-    老大的思路：
-    ① 第一组（博冷组）：通过复式多选把组合概率提升到≥10%，预算6-8元
-    ② 第二组（回本组）：偏回本博冷，选概率最高+赔率适中的组合，预算2-4元
-    
-    复式投注核心：
-    - 同一场比赛同一玩法可以选多个结果（如总进球0球+1球）
-    - 注数 = 各场选择数的乘积
-    - 同场多选概率 = 各选项概率之和（互斥事件）
-    
-    示例：2串1复式
-      场A总进球[0球+1球] P=54% × 场B胜平负[负+平] P=48%
-      → 组合P=25.9% | 注数=2×2=4注=8元
+    博冷方案 v5.0 — 宝藏冷门 + 高概率串关
+    =========================================
+    核心思路（小弟设计）：
+    ① 先从冷门信号最强的比赛里，选出1-2个"宝藏冷门选项"（EV最高的冷门）
+       - 宝藏冷门 = 在最高赔率限制下，EV最高的冷门投注选项
+    ② 再用高概率选项（P≥50%，比如总进球0+1球复式）和宝藏冷门串关
+       - 高概率选项提升整体中奖概率，冷门选项提升整体赔率
+    ③ 10元预算全压这套组合
     """
     import itertools as it
     import math as _m
     
     BUDGET_YUAN = 10
     MAX_NOTES = BUDGET_YUAN // 2  # 5注
-    TARGET_PROB = 0.10  # 第一组目标概率≥10%
+    MAX_ODDS = 200  # 最高赔率限制
+    HIGH_PROB_THRESHOLD = 0.50  # 高概率选项门槛：P≥50%
     
     # 按冷门评分排序，取TOP比赛
     top_matches = sorted(scored, key=lambda x: -x['total'])[:6]
     
-    # 每场比赛的候选投注项（每个玩法TOP3，支持更灵活的复式）
-    match_candidates = {}
+    # 分离冷门候选 vs 高概率候选
+    # 冷门候选：从冷门信号最强的比赛中选（赔率高、EV高）
+    # 高概率候选：P≥50%的复式选项（用于串关提升概率）
+    
+    cold_candidates = []   # 宝藏冷门选项
+    high_prob_bets = []    # 高概率串关选项
+    
     for sm in top_matches:
-        best = _pick_best_bets_per_match(sm, top_per_play=3)
-        if best:
-            match_candidates[sm['match']['match_num_str']] = best
-    
-    if len(match_candidates) < 2:
-        return {'label': '⚠️ 动态方案', 'parts': [], 'total_cost': 0,
-                'note': '可投注比赛不足2场'}
-    
-    mids = list(match_candidates.keys())
-    
-    # 木桶原则
-    PLAY_MAX_GUAN = {
-        '比分': 4, '半全场': 4, '总进球': 6,
-        '胜平负': 8, '让球胜平负': 8,
-    }
-    
-    def get_max_guan(bets):
-        min_guan = 8
-        for b in bets:
-            guan = PLAY_MAX_GUAN.get(b.get('play', ''), 8)
-            if guan < min_guan:
-                min_guan = guan
-        return min_guan
-    
-    # ── 为每场比赛生成"选择集" ──
-    # 选择集 = 同一玩法的1-3个结果组合
-    # 每个选择集有：bets列表, 注数因子, 场概率, 加权平均赔率
-    
-    def build_selection_sets(mid):
-        """为一场比赛生成所有可能的选择集"""
-        cands = match_candidates[mid]
-        # 按玩法分组
-        by_play = {}
-        for b in cands:
-            play = b['play']
-            if play not in by_play:
-                by_play[play] = []
-            by_play[play].append(b)
+        mid = sm['match']['match_num_str']
+        match_name = f"{mid} {sm['match']['home']}vs{sm['match']['away']}"
+        recs = sm.get('recs', [])
+        sigs = sm.get('signals', {})
+        total_score = sm['total']
         
-        sets = []
-        for play, bets in by_play.items():
-            bets = bets[:3]  # 每个玩法最多取TOP3
-            # 单选
-            for i, b in enumerate(bets):
-                sets.append({
-                    'bets': [b], 'count': 1,
-                    'prob': b['prob'],
-                    'avg_odds': b['odds'],
-                    'play': play,
+        # ── 提取冷门候选（EV最高的冷门选项）──
+        cold_bets = []
+        seen_keys = set()
+        for r in recs:
+            play = r.get('play', '')
+            pick = r.get('pick', '')
+            key = f"{play}:{pick}"
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            
+            src = r.get('source', '')
+            sig = sigs.get(src, {}).get('score', 0)
+            odds = r.get('odds', 1.0)
+            
+            # 冷门选项：赔率≥5倍（小概率事件），且不超过最高赔率
+            if odds < 5.0 or odds > MAX_ODDS:
+                continue
+            
+            ev, prob = _calc_ev(sig, odds, play)
+            
+            cold_bets.append({
+                'mid': mid,
+                'match': match_name,
+                'play': play,
+                'pick': pick,
+                'odds': odds,
+                'reason': r.get('reason', ''),
+                'signal_score': sig,
+                'prob': prob,
+                'ev': round(ev, 3),
+                'total_score': total_score,
+                'cold_type': r.get('cold_type', ''),
+            })
+        
+        # 按EV降序，选TOP 2个宝藏冷门
+        cold_bets.sort(key=lambda x: -x['ev'])
+        cold_candidates.extend(cold_bets[:2])
+        
+        # ── 提取高概率候选（P≥50%的复式选项）──
+        # 主要来源：总进球0+1球复式（互斥概率之和）
+        ttg = sm['match'].get('ttg', {})
+        ttg_bets = []
+        for goal_num in [0, 1, 2, 3]:
+            ttg_odds = ttg.get(goal_num, 0)
+            if not ttg_odds or ttg_odds > 30:
+                continue
+            # 找到ttg信号分
+            ttg_sig = sigs.get('ttg', {}).get('score', 0)
+            ev_val, prob_val = _calc_ev(ttg_sig, ttg_odds, '总进球')
+            if prob_val > 0:
+                ttg_bets.append({
+                    'mid': mid,
+                    'match': match_name,
+                    'play': '总进球',
+                    'pick': f'{goal_num}球',
+                    'odds': ttg_odds,
+                    'reason': f'{goal_num}球复式',
+                    'signal_score': ttg_sig,
+                    'prob': prob_val,
+                    'ev': round(ev_val, 3),
+                    'total_score': total_score,
+                    'cold_type': '',
                 })
-            # 双选
-            if len(bets) >= 2:
-                for i, j in it.combinations(range(len(bets)), 2):
-                    b1, b2 = bets[i], bets[j]
-                    p = b1['prob'] + b2['prob']
-                    p = min(p, 1.0)
-                    ao = (b1['odds'] * b1['prob'] + b2['odds'] * b2['prob']) / p if p > 0 else (b1['odds'] + b2['odds']) / 2
-                    sets.append({
-                        'bets': [b1, b2], 'count': 2,
-                        'prob': p, 'avg_odds': ao, 'play': play,
-                    })
-            # 三选
-            if len(bets) >= 3:
-                p = sum(b['prob'] for b in bets[:3])
-                p = min(p, 1.0)
-                ao = sum(b['odds'] * b['prob'] for b in bets[:3]) / p if p > 0 else sum(b['odds'] for b in bets[:3]) / 3
-                sets.append({
-                    'bets': bets[:3], 'count': 3,
-                    'prob': p, 'avg_odds': ao, 'play': play,
+        
+        # 计算复式概率（0球+1球组合）
+        if len(ttg_bets) >= 2:
+            combo_prob = sum(b['prob'] for b in ttg_bets[:2])
+            if combo_prob >= HIGH_PROB_THRESHOLD:
+                # 高概率复式选项（0球+1球双选）
+                avg_odds = sum(b['odds'] * b['prob'] for b in ttg_bets[:2]) / combo_prob
+                high_prob_bets.append({
+                    'mid': mid,
+                    'match': match_name,
+                    'bets': ttg_bets[:2],
+                    'count': 2,
+                    'prob': combo_prob,
+                    'avg_odds': avg_odds,
+                    'total_score': total_score,
                 })
-        return sets
+        
+        # 0+1+2球三选
+        if len(ttg_bets) >= 3:
+            combo_prob3 = sum(b['prob'] for b in ttg_bets[:3])
+            if combo_prob3 >= HIGH_PROB_THRESHOLD:
+                avg_odds3 = sum(b['odds'] * b['prob'] for b in ttg_bets[:3]) / combo_prob3
+                high_prob_bets.append({
+                    'mid': mid,
+                    'match': match_name,
+                    'bets': ttg_bets[:3],
+                    'count': 3,
+                    'prob': combo_prob3,
+                    'avg_odds': avg_odds3,
+                    'total_score': total_score,
+                })
+        
+        # 胜平负稳方向也可作为高概率选项（赔率1.3-2.5，概率高）
+        had_h = sm['match'].get('had_h', 0)
+        had_d = sm['match'].get('had_d', 0)
+        had_a = sm['match'].get('had_a', 0)
+        had_sig = sigs.get('had', {}).get('score', 0)
+        
+        # 主胜（热门）高概率
+        if had_h and 1.3 <= had_h <= 2.5:
+            ev_val, prob_val = _calc_ev(had_sig, had_h, '胜平负')
+            if prob_val >= HIGH_PROB_THRESHOLD:
+                high_prob_bets.append({
+                    'mid': mid,
+                    'match': match_name,
+                    'bets': [{
+                        'mid': mid, 'match': match_name,
+                        'play': '胜平负', 'pick': '主胜',
+                        'odds': had_h, 'reason': '主队热门',
+                        'signal_score': had_sig, 'prob': prob_val,
+                        'ev': round(ev_val, 3), 'total_score': total_score, 'cold_type': '',
+                    }],
+                    'count': 1,
+                    'prob': prob_val,
+                    'avg_odds': had_h,
+                    'total_score': total_score,
+                })
     
-    # 预生成每场的选择集
-    mid_selections = {mid: build_selection_sets(mid) for mid in mids}
+    # ── 构建串关组合 ──
+    # 策略：宝藏冷门选项 + 高概率选项 组成 2串1
     
-    # ── 枚举复式串关方案 ──
-    all_schemes = []  # [(groups, ev, odds, prob, notes, guan_count)]
+    if not cold_candidates:
+        return {'label': '⚠️ 博冷方案', 'parts': [], 'total_cost': 0,
+                'note': '今日无有效冷门选项'}
     
-    for guan_count in [2, 3, 4]:
-        if len(mids) < guan_count:
-            continue
-        for selected_mids in it.combinations(mids, guan_count):
-            # 每场选一个选择集
-            selection_lists = [mid_selections[mid] for mid in selected_mids]
-            for combo in it.product(*selection_lists):
-                # 计算注数
-                total_notes = 1
-                for s in combo:
-                    total_notes *= s['count']
-                if total_notes > MAX_NOTES:
-                    continue
-                
-                # 木桶原则
-                all_bets = []
-                for s in combo:
-                    all_bets.extend(s['bets'])
-                if get_max_guan(all_bets) < guan_count:
-                    continue
-                
-                # 计算组合概率和赔率
-                prob_prod = 1.0
-                odds_prod = 1.0
-                for s in combo:
-                    prob_prod *= s['prob']
-                    odds_prod *= s['avg_odds']
-                
-                if prob_prod < 0.01:
-                    continue
-                
-                ev = prob_prod * odds_prod
-                
-                # 构建groups
-                groups = {}
-                for i, mid in enumerate(selected_mids):
-                    groups[mid] = combo[i]['bets']
-                
-                all_schemes.append((groups, ev, odds_prod, prob_prod, total_notes, guan_count))
+    if not high_prob_bets:
+        return {'label': '⚠️ 博冷方案', 'parts': [], 'total_cost': 0,
+                'note': '今日无高概率串关选项（P≥50%）'}
     
-    # 单关也加入
-    for mid in mids:
-        for s in mid_selections[mid]:
-            if s['count'] == 1:  # 单关只加单选
-                b = s['bets'][0]
-                all_schemes.append(({mid: [b]}, b['ev'], b['odds'], b['prob'], 1, 1))
+    # 宝藏冷门按EV降序
+    cold_candidates.sort(key=lambda x: -x['ev'])
+    # 高概率选项按概率降序
+    high_prob_bets.sort(key=lambda x: -x['prob'])
     
-    if not all_schemes:
-        return {'label': '⚠️ 动态方案', 'parts': [], 'total_cost': 0, 'note': '无有效组合'}
-    
-    # ── 去重 ──
-    def scheme_key(groups):
-        items = []
-        for mid, bets in groups.items():
-            for b in bets:
-                items.append((mid, b['play'], b['pick']))
+    def scheme_key_from_bets(cold_bet, high_set):
+        items = [(cold_bet['mid'], cold_bet['play'], cold_bet['pick'])]
+        for b in high_set['bets']:
+            items.append((b['mid'], b['play'], b['pick']))
         return frozenset(items)
-    
-    seen = set()
-    dedup = []
-    for s in all_schemes:
-        sk = scheme_key(s[0])
-        if sk not in seen:
-            seen.add(sk)
-            dedup.append(s)
-    all_schemes = dedup
-    
-    # ═══════════════════════════════════════════
-    # 双组分配策略
-    # ═══════════════════════════════════════════
-    
-    def make_part(groups, ev, odds, prob, notes, guan_count, label_suffix=''):
-        flat = []
-        for mid, bets in groups.items():
-            flat.extend(bets)
-        flat.sort(key=lambda b: b['mid'])
-        ctype = f"{guan_count}串1" if guan_count > 1 else "单关"
-        if notes > 1 and guan_count > 1:
-            ctype += f"(复{notes}注)"
-        return {
-            'type': ctype + label_suffix,
-            'bets': flat,
-            'groups': groups,
-            'cost': notes * 2,
-            'ev_product': round(ev, 3),
-            'odds_x': round(odds, 1),
-            'ret': round(2 * odds, 1),
-            'note': f"{ctype} | EV={ev:.2f} | P={prob:.2%} | {notes}注{notes*2}元"
-        }
     
     plan_parts = []
     used_notes = 0
     used_keys = set()
     
-    # ── 第一组（博冷组）：目标P≥10%，预算6-8元 ──
-    # 策略：从P≥10%的方案中选EV最高的；如果没有P≥10%的，选P最高的
+    def make_part_cold(cold_bet, high_set, notes_used):
+        """生成一注：宝藏冷门 + 高概率选项 串关"""
+        total_notes = high_set['count']  # 高概率复式的注数
+        cost = total_notes * 2
+        
+        # 组合概率 = 冷门概率 × 高概率复式概率
+        combo_prob = cold_bet['prob'] * high_set['prob']
+        combo_odds = cold_bet['odds'] * high_set['avg_odds']
+        combo_ev = combo_prob * combo_odds
+        
+        guan = 2  # 2串1（冷门1场 + 高概率1场）
+        ctype = f"2串1"
+        if high_set['count'] > 1:
+            ctype += f"(复{high_set['count']}注)"
+        
+        # 展示所有投注项
+        all_bets = [cold_bet] + high_set['bets']
+        
+        return {
+            'type': ctype + ' 博冷',
+            'bets': all_bets,
+            'groups': {
+                cold_bet['mid']: [cold_bet],
+                high_set['mid']: high_set['bets'],
+            },
+            'cost': cost,
+            'ev_product': round(combo_ev, 3),
+            'odds_x': round(combo_odds, 1),
+            'ret': round(2 * combo_odds, 1),
+            'note': f"{ctype} | EV={combo_ev:.2f} | P={combo_prob:.2%} | {total_notes}注{cost}元 | 冷门:{cold_bet['pick']}@{cold_bet['odds']}×高概率P={high_set['prob']:.1%}"
+        }, total_notes
     
-    # 筛选P≥TARGET_PROB的方案，按EV降序
-    target_schemes = [s for s in all_schemes if s[3] >= TARGET_PROB and s[4] <= 4]  # notes≤4(8元)
-    target_schemes.sort(key=lambda x: (-x[3], -x[1]))  # 先按P降序，再按EV降序
-    
-    # 如果有P≥10%的方案，选EV最高的那个
-    # 但也要考虑预算：第一组用6-8元，留2-4元给第二组
-    best_g1 = None
-    for groups, ev, odds, prob, notes, gc in all_schemes:
-        if prob >= TARGET_PROB and 3 <= notes <= 4:  # 6-8元
-            sk = scheme_key(groups)
-            if sk not in used_keys:
-                best_g1 = (groups, ev, odds, prob, notes, gc)
-                used_keys.add(sk)
-                break
-    
-    # 如果没有P≥10%且notes在3-4的，放宽条件
-    if not best_g1:
-        # 选P最接近10%的，notes≤4
-        candidates = [s for s in all_schemes if s[4] <= 4 and s[5] >= 2]
-        candidates.sort(key=lambda x: -x[3])  # 按P降序
-        for groups, ev, odds, prob, notes, gc in candidates:
-            sk = scheme_key(groups)
-            if sk not in used_keys:
-                best_g1 = (groups, ev, odds, prob, notes, gc)
-                used_keys.add(sk)
-                break
-    
-    if best_g1:
-        p1 = make_part(*best_g1, ' 博冷')
-        plan_parts.append(p1)
-        used_notes += best_g1[4]
-    
-    # ── 第二组（回本组）：偏回本博冷 ──
-    # 策略：选概率最高+赔率适中的组合
-    # 回本优先：P最高，赔率≥3（至少能回本+赚一点）
-    remaining_notes = MAX_NOTES - used_notes
-    
-    # 筛选适合回本的方案：P高，赔率适中（3-50倍），notes≤remaining
-    回本_candidates = []
-    for groups, ev, odds, prob, notes, gc in all_schemes:
-        sk = scheme_key(groups)
-        if sk in used_keys:
-            continue
-        if notes > remaining_notes:
-            continue
-        # 回本标准：赔率≥2.5（至少能回本），P尽量高
-        if odds >= 2.5:
-            # 回本评分 = 概率 × log(赔率) — 概率优先，赔率其次
-            score = prob * _m.log(max(odds, 2.0), 2)
-            回本_candidates.append((score, groups, ev, odds, prob, notes, gc))
-    
-    回本_candidates.sort(key=lambda x: -x[0])  # 按回本评分降序
-    
-    if 回本_candidates:
-        _, groups, ev, odds, prob, notes, gc = 回本_candidates[0]
-        used_keys.add(scheme_key(groups))
-        p2 = make_part(groups, ev, odds, prob, notes, gc, ' 回本')
-        plan_parts.append(p2)
-        used_notes += notes
-    
-    # ── 如果还有剩余预算，继续填充 ──
-    for groups, ev, odds, prob, notes, gc in all_schemes:
+    # 选TOP 1-2个宝藏冷门选项，和高概率选项串关
+    for cold_bet in cold_candidates[:2]:
+        for high_set in high_prob_bets:
+            # 同一场比赛不能出现在同一注里
+            if cold_bet['mid'] == high_set['mid']:
+                continue
+            sk = scheme_key_from_bets(cold_bet, high_set)
+            if sk in used_keys:
+                continue
+            notes_needed = high_set['count']
+            if used_notes + notes_needed > MAX_NOTES:
+                continue
+            
+            part, notes_used = make_part_cold(cold_bet, high_set, notes_needed)
+            plan_parts.append(part)
+            used_notes += notes_used
+            used_keys.add(sk)
+            break  # 每个冷门选项只配一个高概率选项
+        
         if used_notes >= MAX_NOTES:
             break
-        sk = scheme_key(groups)
-        if sk in used_keys:
-            continue
-        if notes <= MAX_NOTES - used_notes:
-            p = make_part(groups, ev, odds, prob, notes, gc)
-            plan_parts.append(p)
-            used_notes += notes
-            used_keys.add(sk)
+    
+    if not plan_parts:
+        return {'label': '⚠️ 博冷方案', 'parts': [], 'total_cost': 0,
+                'note': '无法构建有效串关组合（冷门和高概率不在不同场次）'}
     
     total_cost = sum(p['cost'] for p in plan_parts)
     
@@ -1240,19 +1204,17 @@ def _gen_smart_plan(scored):
     max_ev = max((p.get('ev_product', 0) for p in plan_parts), default=0)
     max_odds = max((p['odds_x'] for p in plan_parts), default=0)
     if max_ev >= 2.0:
-        label = '🔥🔥🔥 高期望方案'
-    elif max_ev >= 1.0:
-        label = '🔥🔥 正期望方案'
+        label = '🔥🔥🔥 高期望博冷'
     elif max_ev >= 0.5:
-        label = '🔥 中等期望方案'
+        label = '🔥🔥 博冷方案'
     else:
-        label = '📊 保守方案'
+        label = '🔥 博冷方案'
     
     return {
         'label': label,
         'parts': plan_parts,
         'total_cost': total_cost,
-        'note': f"EV驱动+复式 | {len(plan_parts)}组/{total_cost}元 | 最高EV={max_ev:.2f} | 最高倍={max_odds}x"
+        'note': f"宝藏冷门+高概率串关 | {len(plan_parts)}组/{total_cost}元 | 最高EV={max_ev:.2f} | 最高倍={max_odds}x"
     }
 
 def gen_plan(scored):
