@@ -997,7 +997,11 @@ def _gen_smart_plan(scored):
         sigs = sm.get('signals', {})
         total_score = sm['total']
         
-        # ── 提取冷门候选（EV最高的冷门选项）──
+        # ── 提取冷门候选（按偏离度排序选宝藏冷门）──
+        # 宝藏冷门 = 庄家定价最不合理的选项（赔率偏离公平赔率最大）
+        # 公平赔率 = 1/概率，偏离度 = odds / fair_odds = odds × prob
+        # 偏离度>1说明庄家给高了（可能是收割点），偏离度<1说明庄家给低了
+        # 但我们不要偏离度最高的（太妖），而是要偏离度合理且EV不错的
         cold_bets = []
         seen_keys = set()
         for r in recs:
@@ -1012,11 +1016,23 @@ def _gen_smart_plan(scored):
             sig = sigs.get(src, {}).get('score', 0)
             odds = r.get('odds', 1.0)
             
-            # 冷门选项：赔率≥5倍（小概率事件），且不超过最高赔率
-            if odds < 5.0 or odds > MAX_ODDS:
+            # v5.0：冷门候选不限于比分，所有冷门方向选项都可入选
+            # 赔率≥3倍（冷门方向），且不超过最高赔率
+            if odds < 3.0 or odds > MAX_ODDS:
+                continue
+            
+            # 只选带冷门标记的选项（cold_type不为空）
+            ct = r.get('cold_type', '')
+            if not ct:
                 continue
             
             ev, prob = _calc_ev(sig, odds, play)
+            
+            # 偏离度 = 实际赔率 / 公平赔率 = odds × prob
+            # 偏离度=1 → 公平定价
+            # 偏离度>1 → 庄家给高了（可能是收割陷阱，也可能是真的冷门机会）
+            # 偏离度<1 → 庄家给低了（热门方向，不值得博冷）
+            deviation = odds * prob
             
             cold_bets.append({
                 'mid': mid,
@@ -1028,13 +1044,30 @@ def _gen_smart_plan(scored):
                 'signal_score': sig,
                 'prob': prob,
                 'ev': round(ev, 3),
+                'deviation': round(deviation, 3),
                 'total_score': total_score,
                 'cold_type': r.get('cold_type', ''),
             })
         
-        # 按EV降序，选TOP 2个宝藏冷门
-        cold_bets.sort(key=lambda x: -x['ev'])
-        cold_candidates.extend(cold_bets[:2])
+        # 按偏离度降序排序，但过滤掉偏离度太极端的（>3说明定价离谱，太妖）
+        # 选偏离度在1.0-3.0之间的，按偏离度降序
+        # 这样选出来的是"庄家可能定错价"的冷门，而不是单纯赔率最高的
+        cold_bets_filtered = [b for b in cold_bets if 1.0 <= b['deviation'] <= 3.0]
+        if not cold_bets_filtered:
+            # 如果没有偏离度合理的，放宽到0.5-5.0
+            cold_bets_filtered = [b for b in cold_bets if 0.5 <= b['deviation'] <= 5.0]
+        if not cold_bets_filtered:
+            cold_bets_filtered = cold_bets  # 实在没有就用全部
+        
+        # 按综合分排序：冷门评分 × 偏离度
+        # 冷门评分高 = 模型认为这场比赛冷门概率大
+        # 偏离度高 = 庄家定价偏离大
+        # 综合分 = 冷门评分权重0.6 + 偏离度权重0.4
+        # 这样不同比赛因为冷门评分不同，排序结果会不同
+        for b in cold_bets_filtered:
+            b['treasure_score'] = b['total_score'] * 0.6 + b['deviation'] * 10 * 0.4
+        cold_bets_filtered.sort(key=lambda x: -x['treasure_score'])
+        cold_candidates.extend(cold_bets_filtered[:2])
         
         # ── 提取高概率候选（P≥50%的复式选项）──
         # 主要来源：总进球0+1球复式（互斥概率之和）
@@ -1130,8 +1163,8 @@ def _gen_smart_plan(scored):
         return {'label': '⚠️ 博冷方案', 'parts': [], 'total_cost': 0,
                 'note': '今日无高概率串关选项（P≥50%）'}
     
-    # 宝藏冷门按EV降序
-    cold_candidates.sort(key=lambda x: -x['ev'])
+    # 宝藏冷门按综合分排序（冷门评分×偏离度）
+    cold_candidates.sort(key=lambda x: -x.get('treasure_score', 0))
     # 高概率选项按概率降序
     high_prob_bets.sort(key=lambda x: -x['prob'])
     
