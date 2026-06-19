@@ -1049,25 +1049,19 @@ def _gen_smart_plan(scored):
                 'cold_type': r.get('cold_type', ''),
             })
         
-        # 按偏离度降序排序，但过滤掉偏离度太极端的（>3说明定价离谱，太妖）
-        # 选偏离度在1.0-3.0之间的，按偏离度降序
-        # 这样选出来的是"庄家可能定错价"的冷门，而不是单纯赔率最高的
-        cold_bets_filtered = [b for b in cold_bets if 1.0 <= b['deviation'] <= 3.0]
-        if not cold_bets_filtered:
-            # 如果没有偏离度合理的，放宽到0.5-5.0
-            cold_bets_filtered = [b for b in cold_bets if 0.5 <= b['deviation'] <= 5.0]
-        if not cold_bets_filtered:
-            cold_bets_filtered = cold_bets  # 实在没有就用全部
-        
         # 按综合分排序：冷门评分 × 偏离度
         # 冷门评分高 = 模型认为这场比赛冷门概率大
         # 偏离度高 = 庄家定价偏离大
         # 综合分 = 冷门评分权重0.6 + 偏离度权重0.4
         # 这样不同比赛因为冷门评分不同，排序结果会不同
-        for b in cold_bets_filtered:
-            b['treasure_score'] = b['total_score'] * 0.6 + b['deviation'] * 10 * 0.4
-        cold_bets_filtered.sort(key=lambda x: -x['treasure_score'])
-        cold_candidates.extend(cold_bets_filtered[:2])
+        for b in cold_bets:
+            # 归一化偏离度到0-100范围
+            norm_dev = min(b['deviation'] * 12, 100)
+            # 玩法多样性奖励：非比分玩法+20分（比分赔率固定不随比赛变化）
+            play_bonus = 20 if b['play'] != '比分' else 0
+            b['treasure_score'] = b['total_score'] * 0.4 + norm_dev * 0.2 + play_bonus
+        cold_bets.sort(key=lambda x: -x['treasure_score'])
+        cold_candidates.extend(cold_bets[:2])
         
         # ── 提取高概率候选（P≥50%的复式选项）──
         # 主要来源：总进球0+1球复式（互斥概率之和）
