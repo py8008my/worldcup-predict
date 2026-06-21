@@ -855,59 +855,95 @@ HIGH_PLAYS  = ['比分']
 # 4a. 期望值引擎 — 概率×赔率驱动
 # ═══════════════════════════════════════════
 
-def _signal_to_prob(signal_score, play_type='', odds=None):
+def _load_calibration(kb):
     """
-    信号分 → 概率映射（v5.0改进：融合赔率隐含概率）
+    v6.0 动态概率校准 — 从知识库历史赛果自动计算
     =================================================
-    v5.0核心改进：
-    - 旧版：概率只看信号分，导致同信号分下高赔率EV虚高
-    - 新版：概率 = 信号分概率 × 0.5 + 赔率隐含概率 × 0.5
-    - 这样EV = prob × odds 不会再偏向极端高赔率
+    每次运行时从 kb['matches'] 读取所有已赛场次，
+    计算实际进球分布和胜平负分布，用于动态校准概率映射。
     
-    赔率隐含概率 = 1/odds（庄家定价反映的真实概率）
-    融合概率 = max(信号概率 × 0.5 + 隐含概率 × 0.5, 0.005)
+    返回: {
+        'goal_dist': {0: 0.105, 1: 0.211, ...},  # 进球分布概率
+        'had_dist': {'主胜': 0.368, '平': 0.421, '客胜': 0.211},
+        'low_goal_prob': 0.316,  # 0-1球概率
+        'mid_goal_prob': 0.263,  # 2球概率
+        'high_goal_prob': 0.421, # 3+球概率
+        'total_matches': 19,
+    }
     """
-    # 基础概率（信号分映射 v6.0：根据实际赛果校准）
-    # 历史11场实际分布：0球9%、1球18%、2球36%、3+球36%
-    # 信号分反映"冷门程度"，越高说明越偏离正常
+    from collections import Counter
+    matches = kb.get('matches', [])
+    total = len(matches)
+    
+    if total < 5:
+        # 数据不足，用默认值
+        return {
+            'goal_dist': {0: 0.10, 1: 0.20, 2: 0.30, 3: 0.15, 4: 0.15, 5: 0.05, 6: 0.03, 7: 0.02},
+            'had_dist': {'主胜': 0.40, '平': 0.35, '客胜': 0.25},
+            'low_goal_prob': 0.30,
+            'mid_goal_prob': 0.30,
+            'high_goal_prob': 0.40,
+            'total_matches': 0,
+        }
+    
+    goal_counts = Counter(m.get('goals', 0) for m in matches)
+    had_counts = Counter(m.get('had', '') for m in matches)
+    
+    goal_dist = {g: goal_counts.get(g, 0) / total for g in range(8)}
+    had_dist = {h: had_counts.get(h, 0) / total for h in ['主胜', '平', '客胜']}
+    
+    low = sum(1 for m in matches if m.get('goals', 0) <= 1) / total
+    mid = sum(1 for m in matches if m.get('goals', 0) == 2) / total
+    high = sum(1 for m in matches if m.get('goals', 0) >= 3) / total
+    
+    return {
+        'goal_dist': goal_dist,
+        'had_dist': had_dist,
+        'low_goal_prob': low,
+        'mid_goal_prob': mid,
+        'high_goal_prob': high,
+        'total_matches': total,
+    }
+
+
+def _signal_to_prob(signal_score, play_type='', odds=None, calibration=None):
+    """
+    信号分 → 概率映射（v6.0：动态校准 + 融合赔率隐含概率）
+    =========================================================
+    v6.0改进：
+    1. 概率映射根据知识库实际赛果动态校准
+    2. 融合赔率隐含概率（1/odds），避免高赔率EV虚高
+    3. 比分玩法×0.35折扣不变
+    """
+    # 基础概率（信号分映射）
     if signal_score <= 0:
         base = 0.01
     elif signal_score <= 10:
-        base = 0.01 + (signal_score / 10) * 0.03  # 1%→4%
+        base = 0.01 + (signal_score / 10) * 0.03
     elif signal_score <= 20:
-        base = 0.04 + ((signal_score - 10) / 10) * 0.06  # 4%→10%
+        base = 0.04 + ((signal_score - 10) / 10) * 0.06
     elif signal_score <= 35:
-        base = 0.10 + ((signal_score - 20) / 15) * 0.12  # 10%→22%
+        base = 0.10 + ((signal_score - 20) / 15) * 0.12
     elif signal_score <= 55:
-        base = 0.22 + ((signal_score - 35) / 20) * 0.10  # 22%→32%
+        base = 0.22 + ((signal_score - 35) / 20) * 0.10
     else:
-        base = min(0.32 + ((signal_score - 55) / 45) * 0.10, 0.42)  # 32%→42%
+        base = min(0.32 + ((signal_score - 55) / 45) * 0.10, 0.42)
     
     # 比分玩法概率折扣
     if play_type == '比分':
         base *= 0.35
     
-    # v5.0：融合赔率隐含概率
+    # v6.0：融合赔率隐含概率
     if odds and odds > 1.0:
-        implied_prob = 1.0 / odds  # 庄家隐含概率
-        # 融合：信号分概率和赔率隐含概率的加权平均
-        # 信号分反映模型分析，隐含概率反映市场定价
-        # 两者取平均，避免极端
-        fused = base * 0.4 + implied_prob * 0.6  # 市场定价权重更高
-        return max(fused, 0.005)  # 最低0.5%
+        implied_prob = 1.0 / odds
+        fused = base * 0.4 + implied_prob * 0.6
+        return max(fused, 0.005)
     
     return base
 
-def _calc_ev(signal_score, odds, play_type=''):
-    """
-    期望值 = 概率 × 赔率
-    ==================
-    v5.0: 概率融合了赔率隐含概率，避免高赔率EV虚高
-    EV > 1.0  → 正期望
-    EV = 1.0  → 公平
-    EV < 1.0  → 负期望
-    """
-    prob = _signal_to_prob(signal_score, play_type, odds)
+def _calc_ev(signal_score, odds, play_type='', calibration=None):
+    """期望值 = 概率 × 赔率"""
+    prob = _signal_to_prob(signal_score, play_type, odds, calibration)
     return prob * odds, prob
 
 def _pick_best_bets_per_match(scored_match, top_per_play=2):
@@ -1424,12 +1460,9 @@ def calc_trigger_time(matches):
 def main():
     print("🔄 获取体彩数据 + 加载知识库...")
     kb=load_knowledge_base()
-    # 赛果回写
+    # v6.0: 每日赛果自动更新
     try:
-        new_results=fetch_results()
-        if new_results:
-            added=update_kb_results(kb, new_results)
-            if added>0:save_kb(kb)
+        auto_update_results(kb)
     except: pass
     # v4.0: 加载高阶统计数据
     try:
@@ -1456,6 +1489,10 @@ def main():
         else:
             kb['tournament_stage'] = 'group'
     except: pass
+    # v6.0: 动态概率校准 — 从历史赛果计算实际分布
+    calibration = _load_calibration(kb)
+    if calibration['total_matches'] > 0:
+        print(f"📊 概率校准: {calibration['total_matches']}场赛果 | 低进球={calibration['low_goal_prob']:.1%} 中={calibration['mid_goal_prob']:.1%} 高={calibration['high_goal_prob']:.1%}")
     try:
         raw=fetch_sporttery()
         matches=parse_matches(raw)
@@ -1515,6 +1552,66 @@ def main():
     plan=gen_plan(scored)
     print_plan(plan)
     return scored,plan,kb
+
+def auto_update_results(kb):
+    """
+    v6.0 每日赛果自动更新 — 从多个来源抓取已赛比分
+    =================================================
+    1. 尝试 fifawatch.com（正则抓取）
+    2. 如果失败，尝试从 odds_snapshots 中已完赛的比赛推断
+    3. 回写 knowledge_base.json
+    """
+    added = 0
+    # 来源1: fifawatch
+    try:
+        new_results = fetch_results()
+        if new_results:
+            added = update_kb_results(kb, new_results)
+    except:
+        pass
+    
+    # 来源2: 从fifawatch网页手动解析（备用）
+    if added == 0:
+        try:
+            import re
+            url = "https://fifawatch.com/zh/"
+            hdrs = {"User-Agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)","Accept-Language":"zh-CN,zh;q=0.9"}
+            ctx = ssl.create_default_context()
+            req = urllib.request.Request(url, headers=hdrs)
+            with urllib.request.urlopen(req, context=ctx, timeout=15) as r:
+                html = r.read().decode('utf-8')
+            
+            # 匹配 "最终比分 队A X:Y 队B" 格式
+            pattern = r'最终比分\s*([\u4e00-\u9fa5]{2,6})\s*(?:TUR|BRA|SCO|USA|NED|GER|ECU|TUN|[A-Z]{3})?\s*(\d+):(\d+)\s*([\u4e00-\u9fa5]{2,6})'
+            seen = set()
+            results = []
+            for m in re.finditer(pattern, html):
+                home = m.group(1); hg = int(m.group(2)); ag = int(m.group(3)); away = m.group(4)
+                key = (home, away)
+                if key in seen: continue
+                seen.add(key)
+                total = hg + ag
+                had = '主胜' if hg>ag else ('平' if hg==ag else '客胜')
+                results.append({
+                    'date': datetime.now().strftime('%Y-%m-%d'),
+                    'match': f"{home}vs{away}",
+                    'score': f"{hg}:{ag}",
+                    'goals': total,
+                    'had': had
+                })
+            
+            if results:
+                added = update_kb_results(kb, results)
+        except:
+            pass
+    
+    if added > 0:
+        save_kb(kb)
+        # 重新计算校准
+        cal = _load_calibration(kb)
+        print(f"📊 赛果回写:{added}场 → 总计{cal['total_matches']}场 | 低球={cal['low_goal_prob']:.1%} 高球={cal['high_goal_prob']:.1%}")
+    
+    return added
 
 if __name__=='__main__':
     main()

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""每日世界杯方案生成 + 邮件推送 v4.0
-同时运行博冷模型 + 稳健模型，合并推送
+"""每日世界杯方案生成 + 邮件推送 v6.0
+博冷模型 + 必胜模型，合并推送
 """
 import sys, os, subprocess, smtplib
 from datetime import datetime
@@ -134,7 +134,7 @@ def build_email(all_outputs):
 
     # 底部
     html.append('<div style="margin-top:16px;padding-top:10px;border-top:1px solid #eee;color:#999;font-size:11px;">')
-    html.append(f'生成时间：{datetime.now().strftime("%Y-%m-%d %H:%M")} | 模型 v4.0 三模 | 理性投注 仅供娱乐')
+    html.append(f'生成时间：{datetime.now().strftime("%Y-%m-%d %H:%M")} | 模型 v6.0 双模动态校准 | 理性投注 仅供娱乐')
     html.append('</div>')
 
     return '\n'.join(html), False
@@ -174,7 +174,7 @@ def main():
     html_body, is_skip = build_email(all_outputs)
 
     today = datetime.now().strftime("%m-%d")
-    subject = f"⚽ 世界杯方案 {today} | v5.0 博冷+必胜"
+    subject = f"⚽ 世界杯方案 {today} | v6.0 博冷+必胜"
 
     send_email(subject, html_body)
     print(f"✅ 已发送到 {SMTP_CONFIG['to']}")
