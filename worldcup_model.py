@@ -28,6 +28,7 @@ MODERATE = 1.80
 COLD_TYPE1 = 'Type1-超级冷门'  # 超级热门(赔率<1.30)被逼平或输球
 COLD_TYPE2 = 'Type2-中等冷门'  # 中强队(赔率1.30-1.80)被弱队爆冷
 COLD_TYPE3 = 'Type3-进球冷门'  # 预期高进球比赛打出0-1球
+COLD_TYPE4 = 'Type4-大球冷门'  # 预期低进球比赛打出4+球（v6.0新增）
 
 # CRS特殊key映射
 CRS_SPECIAL = {'s1sa': '胜其他', 's1sd': '平其他', 's1sh': '负其他',
@@ -459,14 +460,37 @@ def sig_hhad(m):
     return{'score':min(score,100),'signals':sigs,'recs':recs}
 
 def sig_ttg(m):
+    """
+    总进球信号 v6.0 — 双向冷门检测
+    ================================
+    冷门不只一种：
+      Type3-进球冷门：预期高进球打出低进球（0-1球）
+      Type4-大球冷门：预期低进球打出高进球（4+球）
+    世界杯实际数据：11场中0球1场(9%)、1球2场(18%)、2球4场(36%)、3+球4场(36%)
+    → 低进球(0-1球)实际概率仅27%，不是之前假设的54%
+    → 高进球(3+球)反而是大概率事件
+    """
     ttg=m.get('ttg',{})
     if not ttg:return{'score':0,'signals':[],'recs':[]}
     score=0;sigs=[];recs=[]
     t0=ttg.get(0,0);t1=ttg.get(1,0)
-    if t0 and t0<12.0:score+=30;sigs.append(f"0球赔率{t0}→闷平风险[Type3]")
-    if t1 and t1<5.0:score+=20;sigs.append(f"1球赔率{t1}→进球难产[Type3]")
+    t4=ttg.get(4,0);t5=ttg.get(5,0);t6=ttg.get(6,0);t7=ttg.get(7,0)
+    
+    # 低进球冷门（0-1球）
+    if t0 and t0<15.0:score+=20;sigs.append(f"0球赔率{t0}→闷平风险[Type3]")
+    if t1 and t1<6.0:score+=12;sigs.append(f"1球赔率{t1}→进球难产[Type3]")
+    
+    # 高进球冷门（4+球）— 新增！
+    if t4 and t4<15.0:score+=18;sigs.append(f"4球赔率{t4}→大球冷门[Type4]")
+    if t5 and t5<25.0:score+=15;sigs.append(f"5球赔率{t5}→超大球冷门[Type4]")
+    if t6 and t6<40.0:score+=12;sigs.append(f"6球赔率{t6}→极端大球[Type4]")
+    if t7 and t7<50.0:score+=10;sigs.append(f"7球赔率{t7}→极端大球[Type4]")
+    
+    # 添加冷门recs（双向）
     if t0:recs.append({'play':'总进球','pick':'0球','odds':t0,'reason':'闷平','cold_type':COLD_TYPE3})
     if t1:recs.append({'play':'总进球','pick':'1球','odds':t1,'reason':'低比分','cold_type':COLD_TYPE3})
+    if t4:recs.append({'play':'总进球','pick':'4球','odds':t4,'reason':'大球冷门','cold_type':'Type4-大球冷门'})
+    if t5:recs.append({'play':'总进球','pick':'5球','odds':t5,'reason':'超大球冷门','cold_type':'Type4-大球冷门'})
     return{'score':min(score,100),'signals':sigs,'recs':recs}
 
 def sig_crs(m, kb):
@@ -766,7 +790,7 @@ def score_match(m, kb):
     total=0
     for nm,si in sigs.items():total+=si['score']*W.get(nm,0)
     # 按冷门类型汇总
-    type_scores={COLD_TYPE1:0,COLD_TYPE2:0,COLD_TYPE3:0}
+    type_scores={COLD_TYPE1:0,COLD_TYPE2:0,COLD_TYPE3:0,COLD_TYPE4:0}
     for nm,si in sigs.items():
         for r in si.get('recs',[]):
             ct=r.get('cold_type','')
@@ -843,19 +867,21 @@ def _signal_to_prob(signal_score, play_type='', odds=None):
     赔率隐含概率 = 1/odds（庄家定价反映的真实概率）
     融合概率 = max(信号概率 × 0.5 + 隐含概率 × 0.5, 0.005)
     """
-    # 基础概率（信号分映射）
+    # 基础概率（信号分映射 v6.0：根据实际赛果校准）
+    # 历史11场实际分布：0球9%、1球18%、2球36%、3+球36%
+    # 信号分反映"冷门程度"，越高说明越偏离正常
     if signal_score <= 0:
         base = 0.01
     elif signal_score <= 10:
-        base = 0.01 + (signal_score / 10) * 0.02
+        base = 0.01 + (signal_score / 10) * 0.03  # 1%→4%
     elif signal_score <= 20:
-        base = 0.03 + ((signal_score - 10) / 10) * 0.05
+        base = 0.04 + ((signal_score - 10) / 10) * 0.06  # 4%→10%
     elif signal_score <= 35:
-        base = 0.08 + ((signal_score - 20) / 15) * 0.10
+        base = 0.10 + ((signal_score - 20) / 15) * 0.12  # 10%→22%
     elif signal_score <= 55:
-        base = 0.18 + ((signal_score - 35) / 20) * 0.12
+        base = 0.22 + ((signal_score - 35) / 20) * 0.10  # 22%→32%
     else:
-        base = min(0.30 + ((signal_score - 55) / 45) * 0.10, 0.40)
+        base = min(0.32 + ((signal_score - 55) / 45) * 0.10, 0.42)  # 32%→42%
     
     # 比分玩法概率折扣
     if play_type == '比分':
@@ -1057,8 +1083,8 @@ def _gen_smart_plan(scored):
         for b in cold_bets:
             # 归一化偏离度到0-100范围
             norm_dev = min(b['deviation'] * 12, 100)
-            # 玩法多样性奖励：非比分玩法+20分（比分赔率固定不随比赛变化）
-            play_bonus = 20 if b['play'] != '比分' else 0
+            # 玩法多样性奖励：非比分玩法+15分
+            play_bonus = 15 if b['play'] != '比分' else 0
             b['treasure_score'] = b['total_score'] * 0.4 + norm_dev * 0.2 + play_bonus
         cold_bets.sort(key=lambda x: -x['treasure_score'])
         cold_candidates.extend(cold_bets[:2])
