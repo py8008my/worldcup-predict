@@ -614,7 +614,7 @@ def score_match(m, kb):
 #   - 单关 = 1场1结果 = 1注
 #   - 同一场比赛不能出现在同一注的多个位置
 #   - 不同注之间可以复用同一场比赛（不同玩法/结果）
-# 10元预算 = 5注，自由分配在单关、2串1、3串1、4串1等组合中。
+# 30元预算 = 15注，自由分配在单关、2串1、3串1、4串1等组合中。
 
 import itertools, math as _math
 
@@ -781,8 +781,8 @@ def _gen_smart_plan(scored):
     import itertools as it
     import math as _m
     
-    BUDGET_YUAN = 10
-    MAX_NOTES = BUDGET_YUAN // 2  # 5注
+    BUDGET_YUAN = 30
+    MAX_NOTES = BUDGET_YUAN // 2  # 15注
     
     # 按冷门评分排序，取TOP比赛
     # 注意：这里的 _pick_best_bets_per_match 已经会过滤掉冷门信号≥35的比赛

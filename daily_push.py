@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""每日世界杯方案生成 + 邮件推送 v6.0
-博冷模型 + 必胜模型，合并推送
+"""每日世界杯方案生成 + 邮件推送 v7.0
+高性价比模型 + 必胜模型，合并推送
 """
 import sys, os, subprocess, smtplib
 from datetime import datetime
@@ -16,7 +16,7 @@ SMTP_CONFIG = {
 }
 
 MODELS = [
-    ("worldcup_model.py", "🔥 博冷"),
+    ("worldcup_model.py", "🔥 高性价比"),
     ("worldcup_model_win.py", "💎 必胜"),
 ]
 
@@ -39,7 +39,7 @@ def build_email(all_outputs):
 
     html = []
     html.append('<div style="font-family:monospace;font-size:14px;line-height:1.8;color:#333;max-width:600px;">')
-    html.append(f'<div style="text-align:center;font-size:18px;font-weight:bold;color:#c0392b;padding:12px;">⚽ 世界杯方案 v3.5</div>')
+    html.append(f'<div style="text-align:center;font-size:18px;font-weight:bold;color:#c0392b;padding:12px;">⚽ 世界杯方案 v7.0</div>')
 
     for label, output in all_outputs:
         lines = output.strip().split('\n')
@@ -48,7 +48,7 @@ def build_email(all_outputs):
         plan_lines = []
         in_plan = False
         for line in lines:
-            if '今日冷门方案' in line or '今日稳健方案' in line or '今日必胜方案' in line:
+            if '今日高性价比方案' in line or '今日稳健方案' in line or '今日必胜方案' in line:
                 in_plan = True
             if in_plan:
                 plan_lines.append(line)
@@ -66,9 +66,9 @@ def build_email(all_outputs):
             continue
 
         # 解析方案
-        color_map = {'🔥 博冷': '#c0392b', '🛡️ 稳健': '#2980b9', '💎 必胜': '#8e44ad'}
-        bg_map = {'🔥 博冷': '#fdf2f2', '🛡️ 稳健': '#f0f4fa', '💎 必胜': '#f9f0fc'}
-        border_map = {'🔥 博冷': '#c0392b', '🛡️ 稳健': '#2980b9', '💎 必胜': '#8e44ad'}
+        color_map = {'🔥 高性价比': '#c0392b', '🛡️ 稳健': '#2980b9', '💎 必胜': '#8e44ad'}
+        bg_map = {'🔥 高性价比': '#fdf2f2', '🛡️ 稳健': '#f0f4fa', '💎 必胜': '#f9f0fc'}
+        border_map = {'🔥 高性价比': '#c0392b', '🛡️ 稳健': '#2980b9', '💎 必胜': '#8e44ad'}
         
         clr = color_map.get(label, '#333')
         bg = bg_map.get(label, '#f8f9fa')
@@ -84,7 +84,7 @@ def build_email(all_outputs):
                 continue
             esc_s = esc(s)
 
-            if '今日冷门方案' in s or '今日稳健方案' in s or '今日必胜方案' in s:
+            if '今日高性价比方案' in s or '今日稳健方案' in s or '今日必胜方案' in s:
                 continue
             if s.startswith('═══') or s.startswith('────'):
                 continue
@@ -134,7 +134,7 @@ def build_email(all_outputs):
 
     # 底部
     html.append('<div style="margin-top:16px;padding-top:10px;border-top:1px solid #eee;color:#999;font-size:11px;">')
-    html.append(f'生成时间：{datetime.now().strftime("%Y-%m-%d %H:%M")} | 模型 v6.0 双模动态校准 | 理性投注 仅供娱乐')
+    html.append(f'生成时间：{datetime.now().strftime("%Y-%m-%d %H:%M")} | 模型 v7.0 高性价比+必胜 | 理性投注 仅供娱乐')
     html.append('</div>')
 
     return '\n'.join(html), False
@@ -174,7 +174,7 @@ def main():
     html_body, is_skip = build_email(all_outputs)
 
     today = datetime.now().strftime("%m-%d")
-    subject = f"⚽ 世界杯方案 {today} | v6.0 博冷+必胜"
+    subject = f"⚽ 世界杯方案 {today} | v7.0 高性价比+必胜"
 
     send_email(subject, html_body)
     print(f"✅ 已发送到 {SMTP_CONFIG['to']}")

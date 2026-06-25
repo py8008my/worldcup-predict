@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """
-世界杯冷门预测模型 v3.4
-======================
+世界杯高性价比竞彩模型 v7.0
+==========================
 数据源：体彩官方API(webapi.sporttery.cn) + 本地知识库(knowledge_base.json)
 玩法覆盖：胜平负 / 让球胜平负 / 总进球 / 比分 / 半全场 / 混合过关
-v3.4更新：官方竞彩规则集成
+v7.0重构：从"冷门预测"转型为"高性价比竞彩方案"
+  - 统一性价比评分: value_score = prob × log₂(odds)
+  - 所有比赛/玩法按性价比排序，不再区分冷门/高概率
+  - 纯数据分析驱动，输出最优串关组合
+  - 30元预算，1组方案
+v3.4-v6.0历史：
   - 同场不同玩法不能混合过关 → 关联逻辑移至信号阶段(玩法一致性检测)
   - 木桶原则关数限制：比分/半全场≤4关 总进球≤6关 胜平负≤8关
   - 倍投2-50倍 | 单票≤6000元 | 奖金限额按关数分级
-  - EV驱动动态组合 v3.4
 """
 
 import json
@@ -24,11 +28,7 @@ SUPER_FAVORITE = 1.30
 FAVORITE = 1.50
 MODERATE = 1.80
 
-# 冷门类型
-COLD_TYPE1 = 'Type1-超级冷门'  # 超级热门(赔率<1.30)被逼平或输球
-COLD_TYPE2 = 'Type2-中等冷门'  # 中强队(赔率1.30-1.80)被弱队爆冷
-COLD_TYPE3 = 'Type3-进球冷门'  # 预期高进球比赛打出0-1球
-COLD_TYPE4 = 'Type4-大球冷门'  # 预期低进球比赛打出4+球（v6.0新增）
+# v7.0: 不再使用冷门类型标签，统一用 value_score 排序
 
 # CRS特殊key映射
 CRS_SPECIAL = {'s1sa': '胜其他', 's1sd': '平其他', 's1sh': '负其他',
@@ -472,9 +472,9 @@ def sig_had(m, kb):
         else:return{'score':0,'signals':[],'recs':[]}
     score=0;sigs=[];recs=[]
     if h<SUPER_FAVORITE and d and d<5.0:
-        score+=35;sigs.append(f"超级热门({h})平赔仅{d}→防平[Type1]")
+        score+=35;sigs.append(f"超级热门({h})平赔仅{d}→防平")
     if h<FAVORITE and a and a<7.0:
-        score+=25;sigs.append(f"客胜赔率仅{a}→冷门空间[Type2]")
+        score+=25;sigs.append(f"客胜赔率仅{a}→客胜方向")
     if h and d and a:
         mg=1/h+1/d+1/a
         if mg>1.12:score+=15;sigs.append(f"利润率{mg:.2f}→不确定性")
@@ -498,21 +498,19 @@ def sig_had(m, kb):
     moti_h=calc_motivation(m.get('home',''),kb);moti_a=calc_motivation(m.get('away',''),kb)
     if moti_a=='must_win' and a:score+=15;sigs.append("客队必须赢→战意加成")
     if moti_h=='relaxed' and a:score+=10;sigs.append("主队已出线→可能轮换")
-    if score>=30 and d:recs.append({'play':'胜平负','pick':'平','odds':d,'reason':'平赔冷门','cold_type':COLD_TYPE1})
-    if score>=25 and a:
-        ct=COLD_TYPE1 if h<SUPER_FAVORITE else COLD_TYPE2
-        recs.append({'play':'胜平负','pick':'负','odds':a,'reason':'客胜高赔','cold_type':ct})
+    if score>=30 and d:recs.append({'play':'胜平负','pick':'平','odds':d,'reason':'平赔偏低→防平'})
+    if score>=25 and a:recs.append({'play':'胜平负','pick':'负','odds':a,'reason':'客胜方向'})
     return{'score':min(score,100),'signals':sigs,'recs':recs}
 
 def sig_hhad(m):
     l=m.get('hhad_line','');h=m.get('hhad_h');a=m.get('hhad_a')
     if not h:return{'score':0,'signals':[],'recs':[]}
     score=0;sigs=[];recs=[]
-    if l=='-1' and h>2.0:score+=30;sigs.append(f"让1球赔率{h}→穿盘信心低[Type2]")
-    if l=='-1' and a and a<3.0:score+=25;sigs.append(f"受让方仅{a}→弱队或守住[Type2]")
-    if l=='-2':score+=20;sigs.append("让2球深盘→极端[Type2]")
-    if l in('+1','+2'):score+=20;sigs.append(f"主队受让{l}→超弱[Type2]")
-    if l=='-1' and h>2.0:recs.append({'play':'让球胜平负','pick':'让负','odds':a,'reason':'受让方冷门','cold_type':COLD_TYPE2})
+    if l=='-1' and h>2.0:score+=30;sigs.append(f"让1球赔率{h}→穿盘信心低")
+    if l=='-1' and a and a<3.0:score+=25;sigs.append(f"受让方仅{a}→弱队或守住")
+    if l=='-2':score+=20;sigs.append("让2球深盘→极端")
+    if l in('+1','+2'):score+=20;sigs.append(f"主队受让{l}→超弱")
+    if l=='-1' and h>2.0:recs.append({'play':'让球胜平负','pick':'让负','odds':a,'reason':'受让方方向'})
     return{'score':min(score,100),'signals':sigs,'recs':recs}
 
 def sig_ttg(m):
@@ -532,21 +530,21 @@ def sig_ttg(m):
     t0=ttg.get(0,0);t1=ttg.get(1,0)
     t4=ttg.get(4,0);t5=ttg.get(5,0);t6=ttg.get(6,0);t7=ttg.get(7,0)
     
-    # 低进球冷门（0-1球）
-    if t0 and t0<15.0:score+=20;sigs.append(f"0球赔率{t0}→闷平风险[Type3]")
-    if t1 and t1<6.0:score+=12;sigs.append(f"1球赔率{t1}→进球难产[Type3]")
+    # 低进球方向（0-1球）
+    if t0 and t0<15.0:score+=20;sigs.append(f"0球赔率{t0}→闷平风险")
+    if t1 and t1<6.0:score+=12;sigs.append(f"1球赔率{t1}→进球难产")
     
-    # 高进球冷门（4+球）— 新增！
-    if t4 and t4<15.0:score+=18;sigs.append(f"4球赔率{t4}→大球冷门[Type4]")
-    if t5 and t5<25.0:score+=15;sigs.append(f"5球赔率{t5}→超大球冷门[Type4]")
-    if t6 and t6<40.0:score+=12;sigs.append(f"6球赔率{t6}→极端大球[Type4]")
-    if t7 and t7<50.0:score+=10;sigs.append(f"7球赔率{t7}→极端大球[Type4]")
+    # 高进球方向（4+球）
+    if t4 and t4<15.0:score+=18;sigs.append(f"4球赔率{t4}→大球方向")
+    if t5 and t5<25.0:score+=15;sigs.append(f"5球赔率{t5}→超大球方向")
+    if t6 and t6<40.0:score+=12;sigs.append(f"6球赔率{t6}→极端大球")
+    if t7 and t7<50.0:score+=10;sigs.append(f"7球赔率{t7}→极端大球")
     
-    # 添加冷门recs（双向）
-    if t0:recs.append({'play':'总进球','pick':'0球','odds':t0,'reason':'闷平','cold_type':COLD_TYPE3})
-    if t1:recs.append({'play':'总进球','pick':'1球','odds':t1,'reason':'低比分','cold_type':COLD_TYPE3})
-    if t4:recs.append({'play':'总进球','pick':'4球','odds':t4,'reason':'大球冷门','cold_type':'Type4-大球冷门'})
-    if t5:recs.append({'play':'总进球','pick':'5球','odds':t5,'reason':'超大球冷门','cold_type':'Type4-大球冷门'})
+    # 添加recs（双向）
+    if t0:recs.append({'play':'总进球','pick':'0球','odds':t0,'reason':'闷平方向'})
+    if t1:recs.append({'play':'总进球','pick':'1球','odds':t1,'reason':'低比分方向'})
+    if t4:recs.append({'play':'总进球','pick':'4球','odds':t4,'reason':'大球方向'})
+    if t5:recs.append({'play':'总进球','pick':'5球','odds':t5,'reason':'超大球方向'})
     return{'score':min(score,100),'signals':sigs,'recs':recs}
 
 def sig_crs(m, kb):
@@ -556,12 +554,11 @@ def sig_crs(m, kb):
     c00=crs.get('0:0',0);c11=crs.get('1:1',0);c01=crs.get('0:1',0)
     sig_count=0
     if c00 and c00<12.0 and h<1.80:
-        score+=15;sigs.append(f"0:0赔率{c00}→强队或闷平[Type1]");sig_count+=1
+        score+=15;sigs.append(f"0:0赔率{c00}→强队或闷平");sig_count+=1
     if c11 and c11<7.0 and h<1.50:
-        score+=15;sigs.append(f"1:1赔率{c11}→被逼平[Type1]");sig_count+=1
+        score+=15;sigs.append(f"1:1赔率{c11}→被逼平");sig_count+=1
     if c01 and c01<10.0 and h<1.50:
-        ct=COLD_TYPE1 if h<SUPER_FAVORITE else COLD_TYPE2
-        score+=18;sigs.append(f"0:1赔率{c01}→爆冷客胜[{ct}]");sig_count+=1
+        score+=18;sigs.append(f"0:1赔率{c01}→客胜方向");sig_count+=1
     # 扩展冷门比分：赔率>8且<200，但只计TOP5，单信号分值降低
     cold_crs_scores=[]
     for sk,so in crs.items():
@@ -572,15 +569,15 @@ def sig_crs(m, kb):
     for i,(sk,so) in enumerate(cold_crs_scores):
         if i>=5:break
         score+=5;sigs.append(f"{sk}赔率{so}→冷门比分")
-        recs.append({'play':'比分','pick':sk,'odds':so,'reason':'冷门比分','cold_type':COLD_TYPE2})
+        recs.append({'play':'比分','pick':sk,'odds':so,'reason':'比分方向'})
         sig_count+=1
     # 胜其他/负其他
     cwo=crs.get('胜其他',0);clo=crs.get('负其他',0)
     if cwo and cwo<80.0 and h and h<1.50:
         score+=15;sigs.append(f"胜其他赔率{cwo}→大比分赢球空间");sig_count+=1
     if clo and clo<80.0 and h and h<1.80:
-        score+=20;sigs.append(f"负其他赔率{clo}→大比分爆冷空间");sig_count+=1
-        recs.append({'play':'比分','pick':'负其他','odds':clo,'reason':'大比分客胜爆冷','cold_type':COLD_TYPE2})
+        score+=20;sigs.append(f"负其他赔率{clo}→大比分方向");sig_count+=1
+        recs.append({'play':'比分','pick':'负其他','odds':clo,'reason':'大比分客胜方向'})
     # 知识库球队战绩
     tf_h=fuzzy_team(m.get('home',''),kb)
     tf_a=fuzzy_team(m.get('away',''),kb)
@@ -590,9 +587,9 @@ def sig_crs(m, kb):
     sh=calc_team_strength(tf_h);sa=calc_team_strength(tf_a)
     gd_diff=sa.get('gd_avg',0)-sh.get('gd_avg',0)
     if gd_diff>0.5 and c01:score+=10;sigs.append(f"客队攻防差值优+{gd_diff:.1f}→客胜比分可能");sig_count+=1
-    if c01 and c01<15.0 and h<1.50:recs.append({'play':'比分','pick':'0:1','odds':c01,'reason':'客胜冷门','cold_type':COLD_TYPE2})
-    if c11 and c11<8.0 and h<1.50:recs.append({'play':'比分','pick':'1:1','odds':c11,'reason':'平局冷门','cold_type':COLD_TYPE1})
-    if c00 and c00<15.0:recs.append({'play':'比分','pick':'0:0','odds':c00,'reason':'闷平','cold_type':COLD_TYPE1})
+    if c01 and c01<15.0 and h<1.50:recs.append({'play':'比分','pick':'0:1','odds':c01,'reason':'客胜方向'})
+    if c11 and c11<8.0 and h<1.50:recs.append({'play':'比分','pick':'1:1','odds':c11,'reason':'平局方向'})
+    if c00 and c00<15.0:recs.append({'play':'比分','pick':'0:0','odds':c00,'reason':'闷平方向'})
     # 信号分按触发数量动态计算，不轻易封顶
     final_score = min(score, 80 + sig_count*2)  # 基础80+每多一个信号+2，上限约90-100
     return{'score':min(final_score,100),'signals':sigs,'recs':recs}
@@ -602,11 +599,11 @@ def sig_hafu(m):
     if not hafu:return{'score':0,'signals':[],'recs':[]}
     score=0;sigs=[];recs=[]
     dd=hafu.get('平平',0);da=hafu.get('平负',0);ha=hafu.get('胜负',0)
-    if dd and dd<5.0 and h<1.50:score+=25;sigs.append(f"平平{dd}→半场僵局[Type1]")
-    if da and da<8.0 and h<1.50:score+=25;sigs.append(f"平负{da}→半平全负[Type2]")
-    if ha and ha<40.0 and h<1.50:score+=30;sigs.append(f"胜负{ha}→先赢后输大冷[Type2]")
-    if dd and dd<6.0 and h<1.50:recs.append({'play':'半全场','pick':'平平','odds':dd,'reason':'半全场僵局','cold_type':COLD_TYPE1})
-    if da and da<10.0 and h<1.50:recs.append({'play':'半全场','pick':'平负','odds':da,'reason':'半平全负','cold_type':COLD_TYPE2})
+    if dd and dd<5.0 and h<1.50:score+=25;sigs.append(f"平平{dd}→半场僵局")
+    if da and da<8.0 and h<1.50:score+=25;sigs.append(f"平负{da}→半平全负")
+    if ha and ha<40.0 and h<1.50:score+=30;sigs.append(f"胜负{ha}→先赢后输大冷")
+    if dd and dd<6.0 and h<1.50:recs.append({'play':'半全场','pick':'平平','odds':dd,'reason':'半场僵局'})
+    if da and da<10.0 and h<1.50:recs.append({'play':'半全场','pick':'平负','odds':da,'reason':'半平全负'})
     return{'score':min(score,100),'signals':sigs,'recs':recs}
 
 def sig_cross(m, allsig):
@@ -650,11 +647,11 @@ def sig_consensus(m, allsig):
     draw_count=len(direction.get('draw',[]))
     home_count=len(direction.get('home_cold',[]))
     
-    if away_count>=3:score+=30;sigs.append(f"🔴 {away_count}种玩法指向客胜→客胜冷门置信度+")
+    if away_count>=3:score+=30;sigs.append(f"🔴 {away_count}种玩法指向客胜→客胜置信度+")
     elif away_count>=2:score+=18;sigs.append(f"🟡 {away_count}种玩法指向客胜→客胜信号增强")
     if draw_count>=3:score+=28;sigs.append(f"🔵 {draw_count}种玩法指向平局→平局置信度+")
     elif draw_count>=2:score+=16;sigs.append(f"🟢 {draw_count}种玩法指向平局→平局信号增强")
-    if home_count>=2:score+=14;sigs.append(f"🟠 {home_count}种玩法指向主胜冷→主胜冷门信号")
+    if home_count>=2:score+=14;sigs.append(f"🟠 {home_count}种玩法指向主胜→主胜信号")
     
     return{'score':min(score,100),'signals':sigs,'direction':direction}
 
@@ -695,7 +692,7 @@ def sig_xg(m, kb):
     if xg_gap < -0.3:
         score += 15; sigs.append(f"xG差值{xg_gap:.2f}→客队真实实力更强")
         if h_odds and a_odds and h_odds < 2.0:
-            score += 20; sigs.append(f"主队赔率{h_odds}但xG劣势{xg_gap:.2f}→冷门预警")
+            score += 20; sigs.append(f"主队赔率{h_odds}但xG劣势{xg_gap:.2f}→预警")
     elif xg_gap > 0.5:
         # 主队xG优势明显，但赔率偏高（庄家不看好）→ 可能是陷阱
         if h_odds and h_odds > 2.0:
@@ -784,7 +781,7 @@ def sig_stage(m, kb):
     score = 0; sigs = []
     
     if stage == 'knockout':
-        score += 15; sigs.append("淘汰赛阶段→平局率↑ 冷门率↑")
+        score += 15; sigs.append("淘汰赛阶段→平局率↑ 不确定性↑")
         # 淘汰赛加时因素：90分钟平局更常见
     elif stage == 'group_final':
         score += 10; sigs.append("小组赛末轮→战意分化 不确定性↑")
@@ -845,13 +842,6 @@ def score_match(m, kb):
     sigs['oddsdev']={'score':min(od_s,100),'signals':od_d,'recs':[]}
     total=0
     for nm,si in sigs.items():total+=si['score']*W.get(nm,0)
-    # 按冷门类型汇总
-    type_scores={COLD_TYPE1:0,COLD_TYPE2:0,COLD_TYPE3:0,COLD_TYPE4:0}
-    for nm,si in sigs.items():
-        for r in si.get('recs',[]):
-            ct=r.get('cold_type','')
-            if ct in type_scores:type_scores[ct]+=si['score']*W.get(nm,0)
-    dominant_type=max(type_scores,key=type_scores.get) if any(type_scores.values()) else ''
     all_recs=[]
     for nm,si in sigs.items():
         for r in si.get('recs',[]):all_recs.append({**r,'source':nm})
@@ -886,8 +876,7 @@ def score_match(m, kb):
     elif total>=35:lv="🔥🔥高"
     elif total>=22:lv="🔥中等"
     elif total>=10:lv="⚠️低"
-    return{'match':m,'signals':sigs,'total':round(total,1),'level':lv,'recs':all_recs,
-           'cold_types':type_scores,'dominant_type':dominant_type}
+    return{'match':m,'signals':sigs,'total':round(total,1),'level':lv,'recs':all_recs}
 
 # ═══════════════════════════════════════════
 # 4. 方案生成 v3.3 — 动态组合模式
@@ -1006,12 +995,11 @@ def _pick_best_bets_per_match(scored_match, top_per_play=2):
     """
     每场比赛的最优投注选择（支持复式多选）
     =====================================
-    按玩法分组，每个玩法取EV最高的top_per_play个候选。
-    这样复式投注时可以在同一玩法下多选（如总进球同时选0球和1球）。
+    按玩法分组，每个玩法取价值评分最高的top_per_play个候选。
     """
     recs = scored_match.get('recs', [])
     
-    # 按玩法分组，计算EV
+    # 按玩法分组，计算价值评分
     by_play = {}
     seen = set()
     for r in recs:
@@ -1025,18 +1013,15 @@ def _pick_best_bets_per_match(scored_match, top_per_play=2):
         sig = scored_match.get('signals', {}).get(src, {}).get('score', 0)
         odds = r.get('odds', 1.0)
         
-        # 赔率过滤
-        if play == '比分':
-            if odds < 8.0 or odds > 200:
-                continue
-        elif play in ('胜平负', '总进球'):
-            if odds < 2.5 or odds > 200:
-                continue
-        else:
-            if odds < 2.0 or odds > 200:
-                continue
+        # v7.0: 放宽赔率限制，让性价比评分来决定
+        if odds < 1.5 or odds > 250:
+            continue
         
         ev, prob = _calc_ev(sig, odds, play)
+        # v7.0: value_score = prob × log₂(odds) —— 性价比核心指标
+        import math as _m
+        value_score = prob * _m.log(max(odds, 1.5), 2)
+        
         bet = {
             'mid': scored_match['match']['match_num_str'],
             'match': f"{scored_match['match']['match_num_str']} {scored_match['match']['home']}vs{scored_match['match']['away']}",
@@ -1045,8 +1030,8 @@ def _pick_best_bets_per_match(scored_match, top_per_play=2):
             'signal_score': sig,
             'prob': prob,
             'ev': round(ev, 3),
+            'value_score': round(value_score, 4),
             'total_score': scored_match['total'],
-            'cold_type': r.get('cold_type', ''),
         }
         if play not in by_play:
             by_play[play] = []
@@ -1055,12 +1040,12 @@ def _pick_best_bets_per_match(scored_match, top_per_play=2):
     # 每个玩法取TOP-N
     result = []
     for play, bets in by_play.items():
-        bets.sort(key=lambda x: -x['ev'])
+        bets.sort(key=lambda x: -x.get('value_score', 0))
         result.extend(bets[:top_per_play])
     
-    # 按EV降序排列
-    result.sort(key=lambda x: -x['ev'])
-    return result  # 返回所有玩法TOP2，按EV排序
+    # 按value_score降序排列
+    result.sort(key=lambda x: -x.get('value_score', 0))
+    return result
 
 
 def _combo_ev(bets):
@@ -1081,48 +1066,35 @@ def _combo_ev(bets):
 
 def _gen_smart_plan(scored):
     """
-    博冷方案 v5.0 — 宝藏冷门 + 高概率串关
-    =========================================
-    核心思路（小弟设计）：
-    ① 先从冷门信号最强的比赛里，选出1-2个"宝藏冷门选项"（EV最高的冷门）
-       - 宝藏冷门 = 在最高赔率限制下，EV最高的冷门投注选项
-    ② 再用高概率选项（P≥50%，比如总进球0+1球复式）和宝藏冷门串关
-       - 高概率选项提升整体中奖概率，冷门选项提升整体赔率
-    ③ 10元预算全压这套组合
+    高性价比方案 v7.0 — 纯价值分析
+    ==============================
+    核心思路：
+    ① 所有比赛、所有玩法按 value_score = prob × log₂(odds) 统一排序
+    ② 构建串关组合时强制多样性：同一比赛+选项不重复使用
+    ③ 贪心+轮换策略：优先用TOP比赛，但用完即跳过
+    ④ 30元预算，只出1组方案
     """
     import itertools as it
     import math as _m
     
     BUDGET_YUAN = 30
     MAX_NOTES = BUDGET_YUAN // 2  # 15注
-    MAX_ODDS = 200  # 最高赔率限制
-    PLAN_MAX_GROUPS = 1  # v6.0: 只出1组方案
-    HIGH_PROB_THRESHOLD = 0.50  # 高概率选项门槛：P≥50%
+    MAX_ODDS = 250
     
-    # 按冷门评分排序，取TOP比赛
-    top_matches = sorted(scored, key=lambda x: -x['total'])[:6]
+    # ── 第一步：所有比赛统一提取投注选项 ──
+    all_bets = []
+    match_bets_map = {}
     
-    # 分离冷门候选 vs 高概率候选
-    # 冷门候选：从冷门信号最强的比赛中选（赔率高、EV高）
-    # 高概率候选：P≥50%的复式选项（用于串关提升概率）
-    
-    cold_candidates = []   # 宝藏冷门选项
-    high_prob_bets = []    # 高概率串关选项
-    
-    for sm in top_matches:
+    for sm in scored:
         mid = sm['match']['match_num_str']
         match_name = f"{mid} {sm['match']['home']}vs{sm['match']['away']}"
         recs = sm.get('recs', [])
         sigs = sm.get('signals', {})
         total_score = sm['total']
         
-        # ── 提取冷门候选（按偏离度排序选宝藏冷门）──
-        # 宝藏冷门 = 庄家定价最不合理的选项（赔率偏离公平赔率最大）
-        # 公平赔率 = 1/概率，偏离度 = odds / fair_odds = odds × prob
-        # 偏离度>1说明庄家给高了（可能是收割点），偏离度<1说明庄家给低了
-        # 但我们不要偏离度最高的（太妖），而是要偏离度合理且EV不错的
-        cold_bets = []
+        bet_list = []
         seen_keys = set()
+        
         for r in recs:
             play = r.get('play', '')
             pick = r.get('pick', '')
@@ -1135,239 +1107,185 @@ def _gen_smart_plan(scored):
             sig = sigs.get(src, {}).get('score', 0)
             odds = r.get('odds', 1.0)
             
-            # v5.0：冷门候选不限于比分，所有冷门方向选项都可入选
-            # 赔率≥3倍（冷门方向），且不超过最高赔率
-            if odds < 3.0 or odds > MAX_ODDS:
-                continue
-            
-            # 只选带冷门标记的选项（cold_type不为空）
-            ct = r.get('cold_type', '')
-            if not ct:
+            if odds < 1.5 or odds > MAX_ODDS:
                 continue
             
             ev, prob = _calc_ev(sig, odds, play)
+            value_score = prob * _m.log(max(odds, 1.5), 2)
             
-            # 偏离度 = 实际赔率 / 公平赔率 = odds × prob
-            # 偏离度=1 → 公平定价
-            # 偏离度>1 → 庄家给高了（可能是收割陷阱，也可能是真的冷门机会）
-            # 偏离度<1 → 庄家给低了（热门方向，不值得博冷）
-            deviation = odds * prob
-            
-            cold_bets.append({
-                'mid': mid,
-                'match': match_name,
-                'play': play,
-                'pick': pick,
-                'odds': odds,
-                'reason': r.get('reason', ''),
-                'signal_score': sig,
-                'prob': prob,
-                'ev': round(ev, 3),
-                'deviation': round(deviation, 3),
+            bet_list.append({
+                'mid': mid, 'match': match_name, 'play': play,
+                'pick': pick, 'odds': odds, 'reason': r.get('reason', ''),
+                'signal_score': sig, 'prob': prob,
+                'ev': round(ev, 3), 'value_score': round(value_score, 4),
                 'total_score': total_score,
-                'cold_type': r.get('cold_type', ''),
             })
+            all_bets.append(bet_list[-1])
         
-        # 按综合分排序：冷门评分 × 偏离度
-        # 冷门评分高 = 模型认为这场比赛冷门概率大
-        # 偏离度高 = 庄家定价偏离大
-        # 综合分 = 冷门评分权重0.6 + 偏离度权重0.4
-        # 这样不同比赛因为冷门评分不同，排序结果会不同
-        for b in cold_bets:
-            # 归一化偏离度到0-100范围
-            norm_dev = min(b['deviation'] * 12, 100)
-            # 玩法多样性奖励：非比分玩法+15分
-            play_bonus = 15 if b['play'] != '比分' else 0
-            b['treasure_score'] = b['total_score'] * 0.4 + norm_dev * 0.2 + play_bonus
-        cold_bets.sort(key=lambda x: -x['treasure_score'])
-        cold_candidates.extend(cold_bets[:2])
-        
-        # ── 提取高概率候选（P≥50%的复式选项）──
-        # 主要来源：总进球0+1球复式（互斥概率之和）
-        ttg = sm['match'].get('ttg', {})
-        ttg_bets = []
-        for goal_num in [0, 1, 2, 3]:
-            ttg_odds = ttg.get(goal_num, 0)
-            if not ttg_odds or ttg_odds > 30:
-                continue
-            # 找到ttg信号分
-            ttg_sig = sigs.get('ttg', {}).get('score', 0)
-            ev_val, prob_val = _calc_ev(ttg_sig, ttg_odds, '总进球')
-            if prob_val > 0:
-                ttg_bets.append({
-                    'mid': mid,
-                    'match': match_name,
-                    'play': '总进球',
-                    'pick': f'{goal_num}球',
-                    'odds': ttg_odds,
-                    'reason': f'{goal_num}球复式',
-                    'signal_score': ttg_sig,
-                    'prob': prob_val,
-                    'ev': round(ev_val, 3),
-                    'total_score': total_score,
-                    'cold_type': '',
-                })
-        
-        # 计算复式概率（0球+1球组合）
-        if len(ttg_bets) >= 2:
-            combo_prob = sum(b['prob'] for b in ttg_bets[:2])
-            if combo_prob >= HIGH_PROB_THRESHOLD:
-                # 高概率复式选项（0球+1球双选）
-                avg_odds = sum(b['odds'] * b['prob'] for b in ttg_bets[:2]) / combo_prob
-                high_prob_bets.append({
-                    'mid': mid,
-                    'match': match_name,
-                    'bets': ttg_bets[:2],
-                    'count': 2,
-                    'prob': combo_prob,
-                    'avg_odds': avg_odds,
-                    'total_score': total_score,
-                })
-        
-        # 0+1+2球三选
-        if len(ttg_bets) >= 3:
-            combo_prob3 = sum(b['prob'] for b in ttg_bets[:3])
-            if combo_prob3 >= HIGH_PROB_THRESHOLD:
-                avg_odds3 = sum(b['odds'] * b['prob'] for b in ttg_bets[:3]) / combo_prob3
-                high_prob_bets.append({
-                    'mid': mid,
-                    'match': match_name,
-                    'bets': ttg_bets[:3],
-                    'count': 3,
-                    'prob': combo_prob3,
-                    'avg_odds': avg_odds3,
-                    'total_score': total_score,
-                })
-        
-        # 胜平负稳方向也可作为高概率选项（赔率1.3-2.5，概率高）
-        had_h = sm['match'].get('had_h', 0)
-        had_d = sm['match'].get('had_d', 0)
-        had_a = sm['match'].get('had_a', 0)
-        had_sig = sigs.get('had', {}).get('score', 0)
-        
-        # 主胜（热门）高概率
-        if had_h and 1.3 <= had_h <= 2.5:
-            ev_val, prob_val = _calc_ev(had_sig, had_h, '胜平负')
-            if prob_val >= HIGH_PROB_THRESHOLD:
-                high_prob_bets.append({
-                    'mid': mid,
-                    'match': match_name,
-                    'bets': [{
-                        'mid': mid, 'match': match_name,
-                        'play': '胜平负', 'pick': '主胜',
-                        'odds': had_h, 'reason': '主队热门',
-                        'signal_score': had_sig, 'prob': prob_val,
-                        'ev': round(ev_val, 3), 'total_score': total_score, 'cold_type': '',
-                    }],
-                    'count': 1,
-                    'prob': prob_val,
-                    'avg_odds': had_h,
-                    'total_score': total_score,
-                })
+        if bet_list:
+            bet_list.sort(key=lambda x: -x['value_score'])
+            match_bets_map[mid] = bet_list
     
-    # ── 构建串关组合 ──
-    # 策略：宝藏冷门选项 + 高概率选项 组成 2串1
+    all_bets.sort(key=lambda x: -x['value_score'])
     
-    if not cold_candidates:
-        return {'label': '⚠️ 博冷方案', 'parts': [], 'total_cost': 0,
-                'note': '今日无有效冷门选项'}
+    if len(all_bets) < 2:
+        return {'label': '⚠️ 高性价比方案', 'parts': [], 'total_cost': 0,
+                'note': '可投注选项不足'}
     
-    if not high_prob_bets:
-        return {'label': '⚠️ 博冷方案', 'parts': [], 'total_cost': 0,
-                'note': '今日无高概率串关选项（P≥50%）'}
+    # ── 第二步：贪心+轮换构建组合 ──
+    # 策略：
+    # 1. 从value_score最高的比赛开始，选TOP-1或TOP-2选项
+    # 2. 配对另一场比赛的选项，组成2串1
+    # 3. 每对(mid_i, mid_j)只出一个组合
+    # 4. 优先选不同的比赛对，保证覆盖多样化
     
-    # v6.0: 性价比排序（概率×log赔率），替代旧的综合分排序
-    for b in cold_candidates:
-        b['value_score'] = b.get('prob', 0.01) * _m.log(max(b.get('odds', 1.5), 1.5), 2)
-    cold_candidates.sort(key=lambda x: -x.get('value_score', 0))
-    # 高概率选项按概率降序
-    high_prob_bets.sort(key=lambda x: -x['prob'])
+    # 按比赛汇总TOP选项
+    match_tops = {}
+    for mid, bets in match_bets_map.items():
+        match_tops[mid] = bets[:3]  # 每场取TOP3
     
-    def scheme_key_from_bets(cold_bet, high_set):
-        items = [(cold_bet['mid'], cold_bet['play'], cold_bet['pick'])]
-        for b in high_set['bets']:
-            items.append((b['mid'], b['play'], b['pick']))
-        return frozenset(items)
+    mids_sorted = sorted(match_tops.keys(), 
+                         key=lambda m: match_tops[m][0]['value_score'] if match_tops[m] else 0,
+                         reverse=True)
     
     plan_parts = []
     used_notes = 0
-    used_keys = set()
+    used_pairs = set()  # (mid_a, mid_b) 对，每对只出一次
+    used_mids_count = {}  # mid → 出现次数
     
-    def make_part_cold(cold_bet, high_set, notes_used):
-        """生成一注：宝藏冷门 + 高概率选项 串关"""
-        total_notes = high_set['count']  # 高概率复式的注数
-        cost = total_notes * 2
-        
-        # 组合概率 = 冷门概率 × 高概率复式概率
-        combo_prob = cold_bet['prob'] * high_set['prob']
-        combo_odds = cold_bet['odds'] * high_set['avg_odds']
-        combo_ev = combo_prob * combo_odds
-        
-        guan = 2  # 2串1（冷门1场 + 高概率1场）
-        ctype = f"2串1"
-        if high_set['count'] > 1:
-            ctype += f"(复{high_set['count']}注)"
-        
-        # 展示所有投注项
-        all_bets = [cold_bet] + high_set['bets']
-        
-        return {
-            'type': ctype + ' 博冷',
-            'bets': all_bets,
-            'groups': {
-                cold_bet['mid']: [cold_bet],
-                high_set['mid']: high_set['bets'],
-            },
-            'cost': cost,
-            'ev_product': round(combo_ev, 3),
-            'odds_x': round(combo_odds, 1),
-            'ret': round(2 * combo_odds, 1),
-            'note': f"{ctype} | EV={combo_ev:.2f} | P={combo_prob:.2%} | {total_notes}注{cost}元 | 冷门:{cold_bet['pick']}@{cold_bet['odds']}×高概率P={high_set['prob']:.1%}"
-        }, total_notes
-    
-    # 选TOP 1个宝藏冷门选项，和高概率选项串关（v6.0: 只出1组）
-    for cold_bet in cold_candidates[:1]:
-        for high_set in high_prob_bets:
-            # 同一场比赛不能出现在同一注里
-            if cold_bet['mid'] == high_set['mid']:
-                continue
-            sk = scheme_key_from_bets(cold_bet, high_set)
-            if sk in used_keys:
-                continue
-            notes_needed = high_set['count']
-            if used_notes + notes_needed > MAX_NOTES:
-                continue
-            
-            part, notes_used = make_part_cold(cold_bet, high_set, notes_needed)
-            plan_parts.append(part)
-            used_notes += notes_used
-            used_keys.add(sk)
-            break  # 每个冷门选项只配一个高概率选项
-        
+    # 贪心：遍历所有比赛对，每对取一个最优组合
+    # 第一轮：每场比赛最多1次
+    for i in range(len(mids_sorted)):
         if used_notes >= MAX_NOTES:
             break
+        mid_a = mids_sorted[i]
+        if used_mids_count.get(mid_a, 0) >= 1:
+            continue
+        for j in range(i+1, len(mids_sorted)):
+            if used_notes >= MAX_NOTES:
+                break
+            mid_b = mids_sorted[j]
+            if used_mids_count.get(mid_b, 0) >= 1:
+                continue
+            pair_key = tuple(sorted([mid_a, mid_b]))
+            if pair_key in used_pairs:
+                continue
+            
+            bets_a = match_tops[mid_a]
+            bets_b = match_tops[mid_b]
+            
+            # 尝试不同复式组合：1×1, 1×2, 2×1, 2×2
+            best_part = None
+            best_value = -1
+            
+            for na in [1, 2]:
+                if na > len(bets_a): continue
+                for nb in [1, 2]:
+                    if nb > len(bets_b): continue
+                    notes = na * nb
+                    if used_notes + notes > MAX_NOTES:
+                        continue
+                    
+                    sel_a = bets_a[:na]
+                    sel_b = bets_b[:nb]
+                    
+                    combo_prob = 1.0
+                    combo_odds = 1.0
+                    for b in sel_a + sel_b:
+                        combo_prob *= b['prob']
+                        combo_odds *= b['odds']
+                    
+                    combo_value = sum(b['value_score'] for b in sel_a + sel_b)
+                    
+                    if combo_value > best_value:
+                        best_value = combo_value
+                        best_part = (sel_a, sel_b, notes, combo_prob, combo_odds, combo_value)
+            
+            if best_part:
+                sel_a, sel_b, notes, combo_prob, combo_odds, combo_value = best_part
+                cost = notes * 2
+                combo_ev = combo_prob * combo_odds
+                
+                part = {
+                    'type': f"2串1{'复' if notes>1 else ''}",
+                    'bets': sel_a + sel_b,
+                    'groups': {mid_a: sel_a, mid_b: sel_b},
+                    'cost': cost, 'notes': notes,
+                    'ev_product': round(combo_ev, 3),
+                    'odds_x': round(combo_odds, 1),
+                    'ret': round(2 * combo_odds, 1),
+                    'combo_value': round(combo_value, 4),
+                    'note': f"2串1{notes}注 | EV={combo_ev:.2f} | 倍率={combo_odds:.1f}x"
+                }
+                plan_parts.append(part)
+                used_notes += notes
+                used_pairs.add(pair_key)
+                used_mids_count[mid_a] = used_mids_count.get(mid_a, 0) + 1
+                used_mids_count[mid_b] = used_mids_count.get(mid_b, 0) + 1
+                # mid_a 用过了，不再和其他比赛配对
+                break
+    
+    # 如果还没用完，尝试3串1
+    if used_notes < MAX_NOTES and len(mids_sorted) >= 3:
+        for i in range(len(mids_sorted)):
+            for j in range(i+1, len(mids_sorted)):
+                for k in range(j+1, len(mids_sorted)):
+                    if used_notes >= MAX_NOTES:
+                        break
+                    mid_a, mid_b, mid_c = mids_sorted[i], mids_sorted[j], mids_sorted[k]
+                    ba = match_tops[mid_a][:1]
+                    bb = match_tops[mid_b][:1]
+                    bc = match_tops[mid_c][:1]
+                    if not (ba and bb and bc):
+                        continue
+                    notes = 1
+                    if used_notes + notes > MAX_NOTES:
+                        continue
+                    
+                    sel = ba + bb + bc
+                    combo_prob = 1.0
+                    combo_odds = 1.0
+                    for b in sel:
+                        combo_prob *= b['prob']
+                        combo_odds *= b['odds']
+                    
+                    part = {
+                        'type': '3串1', 'bets': sel,
+                        'groups': {mid_a: ba, mid_b: bb, mid_c: bc},
+                        'cost': 2, 'notes': 1,
+                        'ev_product': round(combo_prob * combo_odds, 3),
+                        'odds_x': round(combo_odds, 1),
+                        'ret': round(2 * combo_odds, 1),
+                        'combo_value': round(sum(b['value_score'] for b in sel), 4),
+                        'note': f"3串1 | EV={combo_prob * combo_odds:.2f} | 倍率={combo_odds:.1f}x"
+                    }
+                    plan_parts.append(part)
+                    used_notes += notes
     
     if not plan_parts:
-        return {'label': '⚠️ 博冷方案', 'parts': [], 'total_cost': 0,
-                'note': '无法构建有效串关组合（冷门和高概率不在不同场次）'}
+        return {'label': '⚠️ 高性价比方案', 'parts': [], 'total_cost': 0,
+                'note': '无法构建有效串关组合'}
+    
+    # 按组合价值分排序
+    plan_parts.sort(key=lambda x: -x.get('combo_value', 0))
     
     total_cost = sum(p['cost'] for p in plan_parts)
     
-    # 分类标签
-    max_ev = max((p.get('ev_product', 0) for p in plan_parts), default=0)
     max_odds = max((p['odds_x'] for p in plan_parts), default=0)
-    if max_ev >= 2.0:
-        label = '🔥🔥🔥 高期望博冷'
-    elif max_ev >= 0.5:
-        label = '🔥🔥 博冷方案'
+    avg_ev = sum(p.get('ev_product', 0) for p in plan_parts) / max(len(plan_parts), 1)
+    
+    if avg_ev >= 2.0:
+        label = '🔥🔥🔥 高性价比方案'
+    elif avg_ev >= 0.8:
+        label = '🔥🔥 高性价比方案'
     else:
-        label = '🔥 博冷方案'
+        label = '🔥 高性价比方案'
     
     return {
         'label': label,
         'parts': plan_parts,
         'total_cost': total_cost,
-        'note': f"宝藏冷门+高概率串关 | {len(plan_parts)}组/{total_cost}元 | 最高EV={max_ev:.2f} | 最高倍={max_odds}x"
+        'note': f"纯价值分析 | {len(plan_parts)}组/{total_cost}元 | 最高{max_odds:.0f}倍 | 均EV={avg_ev:.2f}"
     }
 
 def gen_plan(scored):
@@ -1413,7 +1331,7 @@ def gen_plan(scored):
 
 def print_analysis(scored,kb):
     print("="*80)
-    print(f"   🌍 世界杯冷门预测 v4.0 | {datetime.now().strftime('%m-%d %H:%M')} | 知识库:{len(kb.get('matches',[]))}场/{len(kb.get('teams_stats',kb.get('teams',{})))}队")
+    print(f"   ⚽ 世界杯高性价比分析 v7.0 | {datetime.now().strftime('%m-%d %H:%M')} | 知识库:{len(kb.get('matches',[]))}场/{len(kb.get('teams_stats',kb.get('teams',{})))}队")
     print("="*80)
     for i,sm in enumerate(sorted(scored,key=lambda x:-x['total']),1):
         m=sm['match']
@@ -1425,16 +1343,8 @@ def print_analysis(scored,kb):
         tf_a=fuzzy_team(m['away'],kb)
         if tf_h.get('form') or tf_a.get('form'):
             print(f"  主队战绩:{tf_h.get('form','?')} | 客队:{tf_a.get('form','?')}")
-        print(f"\n  🎯 冷门评分:{sm['total']}/100 → {sm['level']}")
-        if sm.get('dominant_type'):
-            print(f"  🏷️ 主导冷门:{sm['dominant_type']}")
-            parts=[]
-            for ct,cs in sm.get('cold_types',{}).items():
-                if cs>0:
-                    short=ct.split('-')[1] if '-' in ct else ct
-                    parts.append(f"{short}:{cs:.1f}分")
-            if parts:print(f"   {' | '.join(parts)}")
-        print(f"\n  📊 十二维信号:")
+        print(f"\n  📊 综合评分:{sm['total']}/100 → {sm['level']}")
+        print(f"\n  🎯 十二维信号:")
         for nm,si in sm['signals'].items():
             if nm=='cross':continue
             bar='█'*min(int(si['score']/5),20)+'░'*max(20-int(si['score']/5),0)
@@ -1446,7 +1356,7 @@ def print_analysis(scored,kb):
     print(f"\n{'='*80}\n")
 
 def print_plan(plan):
-    print("="*80);print("        🎯 今日冷门方案 v4.0");print("="*80)
+    print("="*80);print("        🎯 今日高性价比方案 v7.0");print("="*80)
     if'error'in plan:print(f"  ⚠️ {plan['error']}");return
     total_all=0
     for p in plan.get('plans',[]):
@@ -1517,7 +1427,7 @@ def calc_trigger_time(matches):
 # ═══════════════════════════════════════════
 
 def main():
-    print("🔄 获取体彩数据 + 加载知识库...")
+    print("🔄 获取体彩数据 + 加载知识库 (v7.0 高性价比)...")
     kb=load_knowledge_base()
     # v6.0: 每日赛果自动更新
     try:
