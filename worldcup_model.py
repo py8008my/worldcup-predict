@@ -1076,8 +1076,8 @@ def _gen_smart_plan(scored):
     """
     import math as _m
     
-    MAX_NOTES = 15  # 30元上限
-    MAX_CRS_ODDS = 50  # 比分赔率上限（砍极端）
+    MAX_NOTES = 18  # 36元上限（30元左右，浮动大点增加概率）
+    MAX_CRS_ODDS = 50  # 比分赔率上限
     MAX_ODDS = 200
     
     # 实战常见比分（世界杯高频比分）
@@ -1197,7 +1197,7 @@ def _gen_smart_plan(scored):
             for na in range(1, min(4, len(crs_a)+1)):
                 for nb in range(1, min(4, len(crs_b)+1)):
                     notes = na * nb
-                    if notes < 2 or notes > 15:
+                    if notes < 2 or notes > 18:
                         continue
                     
                     sel_a = crs_a[:na]
@@ -1244,7 +1244,7 @@ def _gen_smart_plan(scored):
                         continue
                     
                     notes = 2 * 2 * 2  # 8注
-                    if notes > 15:
+                    if notes > 18:
                         continue
                     
                     sel = crs_a + crs_b + crs_c
@@ -1270,7 +1270,7 @@ def _gen_smart_plan(scored):
                         'note': f"比分3串1 {notes}注 | EV={combo_ev:.2f} | 倍率={combo_odds:.1f}x"
                     })
     
-    # 方案C：总进球2串1（每场2-3选，覆盖面大）—— 兜底方案
+    # 方案C：总进球2串1（每场2-4选，覆盖面大）—— 兜底方案
     for i in range(len(mids_sorted)):
         for j in range(i+1, len(mids_sorted)):
             mid_a, mid_b = mids_sorted[i], mids_sorted[j]
@@ -1280,13 +1280,13 @@ def _gen_smart_plan(scored):
             if len(ttg_a) < 2 or len(ttg_b) < 2:
                 continue
             
-            for na in [2, 3]:
+            for na in [2, 3, 4]:
                 if na > len(ttg_a): continue
-                for nb in [2, 3]:
+                for nb in [2, 3, 4]:
                     if nb > len(ttg_b): continue
                     notes = na * nb
-                    # 总进球兜底用6注=12元或4注=8元
-                    if notes < 4 or notes > 9:
+                    # 总进球兜底用4-16注=8-32元
+                    if notes < 4 or notes > 16:
                         continue
                     
                     sel_a = ttg_a[:na]
@@ -1330,46 +1330,46 @@ def _gen_smart_plan(scored):
     plan_parts = []
     used_notes = 0
     
-    # 主力：总进球做主力（覆盖面大，概率高），比分做小注点缀
-    # 总进球为主（18元=9注，覆盖率够）
+    # 总进球做主力（覆盖面大，概率高），比分做点缀
+    # 总进球为主（多套组合，利用放宽的预算空间）
     if ttg_only:
         for plan in ttg_only:
-            if used_notes >= 15:
+            if used_notes >= 18:
                 break
-            if used_notes + plan['notes'] > 15:
+            if used_notes + plan['notes'] > 18:
                 continue
             plan_parts.append(plan)
             used_notes += plan['notes']
-            if used_notes >= 9:
+            if used_notes >= 12:
                 break
     
-    # 比分点缀（小注博高赔）
-    if used_notes < 15 and pure_crs:
+    # 比分点缀
+    if used_notes < 18 and pure_crs:
         for plan in pure_crs:
-            if used_notes >= 15:
+            if used_notes >= 18:
                 break
-            if used_notes + plan['notes'] > 15:
+            if used_notes + plan['notes'] > 18:
                 continue
             plan_parts.append(plan)
             used_notes += plan['notes']
             break
     
-    # 如果还不够30元，再加一个总进球（不同比赛对）
-    if used_notes < 13 and ttg_only:
+    # 还不够30元，再补一套总进球
+    if used_notes < 14 and ttg_only:
         used_matches = set()
         for pp in plan_parts:
             used_matches.update(pp['groups'].keys())
         for plan in ttg_only:
-            if used_notes >= 15:
+            if used_notes >= 18:
                 break
-            if used_notes + plan['notes'] > 15:
+            if used_notes + plan['notes'] > 18:
                 continue
             plan_matches = set(plan['groups'].keys())
             if plan_matches == used_matches:
                 continue
             plan_parts.append(plan)
             used_notes += plan['notes']
-            if used_notes >= 13:
+            if used_notes >= 14:
                 break
     
     if not plan_parts:
