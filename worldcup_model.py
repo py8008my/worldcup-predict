@@ -1092,7 +1092,7 @@ def _gen_smart_plan(scored):
     # 世界杯总进球实际分布（93场校准数据）
     # 1球19.4% + 2球19.4% + 3球19.4% = 58.2%集中在1-3球
     TTG_FREQ = {0: 8.6, 1: 19.4, 2: 19.4, 3: 19.4, 4: 16.1, 5: 6.5, 6: 8.6, 7: 0, 8: 2.2}
-    TTG_FREQ_BONUS = 0.6  # 总进球频率加权系数（加大，让2球3球排前面）
+    TTG_FREQ_BONUS = 1.5  # 总进球频率加权系数（加大到1.5，让2球3球排前面）
     
     # ── 第一步：提取投注选项 ──
     all_bets = []
@@ -1158,19 +1158,70 @@ def _gen_smart_plan(scored):
         if bet_list:
             bet_list.sort(key=lambda x: -x['value_score'])
             match_bets_map[mid] = bet_list
+        
+        # 补全总进球：sig_ttg只生成极端值recs，缺少2球3球
+        # 直接从ttg字段构造所有总进球选项
+        ttg_raw = sm['match'].get('ttg', {})
+        ttg_sig = sigs.get('ttg', {}).get('score', 0)
+        for goal_num in [0, 1, 2, 3, 4, 5, 6, 7]:
+            key = f"总进球:{goal_num}球"
+            if key in seen_keys:
+                continue
+            odds = ttg_raw.get(goal_num, 0) or ttg_raw.get(str(goal_num), 0)
+            if not odds or odds < 2.0 or odds > 100:
+                continue
+            ev, prob = _calc_ev(ttg_sig, odds, '总进球')
+            value_score = prob * _m.log(max(odds, 1.5), 2)
+            if goal_num in TTG_FREQ:
+                freq = TTG_FREQ[goal_num] / 20.0
+                value_score *= (1.0 + freq * TTG_FREQ_BONUS)
+            
+            bet_list.append({
+                'mid': mid, 'match': match_name, 'play': '总进球',
+                'pick': f'{goal_num}球', 'odds': odds, 'reason': '数据补全',
+                'signal_score': ttg_sig, 'prob': prob,
+                'ev': round(ev, 3), 'value_score': round(value_score, 4),
+                'total_score': total_score,
+            })
     
     if len(match_bets_map) < 2:
         return {'label': '⚠️ 高性价比方案', 'parts': [], 'total_cost': 0,
                 'note': '可投注比赛不足'}
     
     # ── 第二步：每场比赛独立评估 ──
+    # 强制策略：每场总进球TOP3 = 1球 + 2球(或3球) + 4球
+    # 世界杯实际分布：1球19.4%/2球19.4%/3球19.4%/4球16.1%——这四种覆盖74%
     match_picks = {}
     for mid, bets in match_bets_map.items():
         crs_top = [b for b in bets if b['play'] == '比分'][:3]
-        ttg_top = [b for b in bets if b['play'] == '总进球'][:3]
+        
+        # 总进球：硬编码TOP3 = 1球 + 2球 + 4球
+        ttg_all = [b for b in bets if b['play'] == '总进球']
+        
+        def _pick_goal(goal_str):
+            return next((b for b in ttg_all if b['pick'] == goal_str), None)
+        
+        ttg_top = []
+        for goal in ['1球', '2球', '4球']:
+            b = _pick_goal(goal)
+            if b and b not in ttg_top:
+                ttg_top.append(b)
+        # 2球不存在用3球
+        if not any(b['pick'] == '2球' for b in ttg_top):
+            b3 = _pick_goal('3球')
+            if b3 and b3 not in ttg_top:
+                ttg_top.insert(1, b3)
+        # 不足3个补value_score最高者
+        if len(ttg_top) < 3:
+            for b in ttg_all:
+                if b not in ttg_top:
+                    ttg_top.append(b)
+                    if len(ttg_top) >= 3:
+                        break
+        
         match_picks[mid] = {
             'crs': crs_top,
-            'ttg': ttg_top,
+            'ttg': ttg_top[:3],
             'all': bets[:6],
         }
     
@@ -1270,7 +1321,7 @@ def _gen_smart_plan(scored):
                         'note': f"比分3串1 {notes}注 | EV={combo_ev:.2f} | 倍率={combo_odds:.1f}x"
                     })
     
-    # 方案C：总进球2串1（每场2-4选，覆盖面大）—— 兜底方案
+    # 方案C：总进球2串1（每场3-4选，覆盖面大）—— 兜底方案
     for i in range(len(mids_sorted)):
         for j in range(i+1, len(mids_sorted)):
             mid_a, mid_b = mids_sorted[i], mids_sorted[j]
@@ -1280,12 +1331,13 @@ def _gen_smart_plan(scored):
             if len(ttg_a) < 2 or len(ttg_b) < 2:
                 continue
             
-            for na in [2, 3, 4]:
+            # 每场3选为主（含2/3球强制），4选兜底
+            for na in [3, 4]:
                 if na > len(ttg_a): continue
-                for nb in [2, 3, 4]:
+                for nb in [3, 4]:
                     if nb > len(ttg_b): continue
                     notes = na * nb
-                    # 总进球兜底用4-16注=8-32元
+                    # 总进球：9-16注=18-32元
                     if notes < 4 or notes > 16:
                         continue
                     
