@@ -1085,7 +1085,7 @@ def print_analysis(scored,kb):
     print(f"\n{'='*80}\n")
 
 def print_plan(plan):
-    print("="*80);print("        💎 今日必胜方案 v4.0-win");print("="*80)
+    print("="*80);print("        💎 今日必胜方案 v4.0");print("="*80)
     if'error'in plan:print(f"  ⚠️ {plan['error']}");return
     total_all=0
     for p in plan.get('plans',[]):
@@ -1100,17 +1100,13 @@ def print_plan(plan):
             groups = part.get('groups', {})
             print(f"\n  ┌ 📌 第{i}组:{typ} | {part['note']}")
             for mid, bets in groups.items():
-                if len(bets) == 1:
-                    b = bets[0]
-                    print(f"  │ {b['match']}")
-                    print(f"  │   [{b['play']}]{b['pick']}@{b['odds']} P={b.get('prob',0):.1%} EV={b.get('ev',0):.2f} {b['reason']}")
-                else:
-                    first = bets[0]
-                    print(f"  │ {first['match']} 【复式{len(bets)}选】")
-                    for b in bets:
-                        print(f"  │   [{b['play']}]{b['pick']}@{b['odds']} P={b.get('prob',0):.1%} EV={b.get('ev',0):.2f}")
-                    field_prob = sum(b.get('prob', 0) for b in bets)
-                    print(f"  │   → 该场命中概率:{field_prob:.1%}")
+                first = bets[0]
+                picks_str = ' + '.join([b['pick'] for b in bets])
+                max_prob = max(b.get('prob', 0) for b in bets)
+                print(f"  │ {first['match']}")
+                print(f"  │   选项: {picks_str}  |  最高概率: {max_prob:.1%}")
+                for b in bets:
+                    print(f"  │     [{b['play']}]{b['pick']}@{b['odds']} P={b.get('prob',0):.1%}")
             print(f"  │ 💰 {cost}元 | ~{part['odds_x']}x | 预估回报:{part['ret']}元")
         print(f"\n  📋 {label}合计:{p['total_cost']}元")
     

@@ -79,13 +79,14 @@ def build_email(all_outputs):
         color_map = {'🔥 高性价比': '#c0392b', '💎 必胜': '#8e44ad'}
         bg_map = {'🔥 高性价比': '#fef5f5', '💎 必胜': '#faf5fc'}
         border_map = {'🔥 高性价比': '#e74c3c', '💎 必胜': '#9b59b6'}
+        icon_map = {'🔥 高性价比': '⚽', '💎 必胜': '💎'}
         
         clr = color_map.get(label, '#333')
         bg = bg_map.get(label, '#fafafa')
         border = border_map.get(label, '#999')
 
         html.append(f'<div style="background:{bg};border-left:3px solid {border};padding:10px 14px;margin:8px 0;border-radius:4px;">')
-        html.append(f'<div style="color:{clr};font-weight:bold;font-size:16px;margin-bottom:4px;">{label}方案</div>')
+        html.append(f'<div style="color:{clr};font-weight:bold;font-size:16px;margin-bottom:4px;">{label} · 今日方案</div>')
 
         in_detail = False
         for line in plan_lines:
@@ -113,7 +114,7 @@ def build_email(all_outputs):
                 continue
 
             if s.startswith('│') and in_detail:
-                if '进球区间' in s:
+                if '进球区间' in s or '选项:' in s:
                     html.append(f'<div style="color:{clr};font-size:12px;font-weight:bold;padding:2px 0 2px 8px;">{esc_s}</div>')
                 elif '@' in s:
                     html.append(f'<div style="color:#555;font-size:11px;padding:1px 0 1px 16px;">{esc_s}</div>')
