@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """每日世界杯方案生成 + 邮件推送 v7.3
-高性价比比分模型 + 必胜模型，合并推送
+高性价比实战比分模型，每日推送
 v7.3: 比赛分类驱动（防守/均衡/开放），不同进球区间组合
 """
 import sys, os, subprocess, smtplib
@@ -18,7 +18,6 @@ SMTP_CONFIG = {
 
 MODELS = [
     ("worldcup_model.py", "🔥 高性价比"),
-    ("worldcup_model_win.py", "💎 必胜"),
 ]
 
 def run_model(script):
@@ -190,7 +189,7 @@ def main():
     html_body, is_skip = build_email(all_outputs)
 
     today = datetime.now().strftime("%m-%d")
-    subject = f"⚽ 世界杯竞彩方案 {today} | v7.3 实战比分"
+    subject = f"⚽ 世界杯竞彩方案 {today} | v7.3"
 
     send_email(subject, html_body)
     print(f"✅ 已发送到 {SMTP_CONFIG['to']}")
