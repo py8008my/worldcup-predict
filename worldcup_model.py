@@ -1554,7 +1554,7 @@ def gen_plan(scored):
 
 def print_analysis(scored,kb):
     print("="*80)
-    print(f"   ⚽ 世界杯高性价比分析 v7.0 | {datetime.now().strftime('%m-%d %H:%M')} | 知识库:{len(kb.get('matches',[]))}场/{len(kb.get('teams_stats',kb.get('teams',{})))}队")
+    print(f"   ⚽ 世界杯实战分析 v7.3 | {datetime.now().strftime('%m-%d %H:%M')} | 知识库:{len(kb.get('matches',[]))}场/{len(kb.get('teams_stats',kb.get('teams',{})))}队")
     print("="*80)
     for i,sm in enumerate(sorted(scored,key=lambda x:-x['total']),1):
         m=sm['match']
@@ -1579,7 +1579,7 @@ def print_analysis(scored,kb):
     print(f"\n{'='*80}\n")
 
 def print_plan(plan):
-    print("="*80);print("        🎯 今日高性价比方案 v7.0");print("="*80)
+    print("="*80);print("        🎯 今日实战方案 v7.3");print("="*80)
     if'error'in plan:print(f"  ⚠️ {plan['error']}");return
     total_all=0
     for p in plan.get('plans',[]):
@@ -1591,27 +1591,20 @@ def print_plan(plan):
         for i, part in enumerate(p.get('parts',[]), 1):
             typ=part['type']
             cost = part.get('cost', 2)
-            # 按mid分组显示，标出复式
             groups = part.get('groups', {})
             print(f"\n  ┌ 📌 第{i}组:{typ} | {part['note']}")
             for mid, bets in groups.items():
-                if len(bets) == 1:
-                    b = bets[0]
-                    print(f"  │ {b['match']}")
-                    print(f"  │   [{b['play']}]{b['pick']}@{b['odds']} P={b.get('prob',0):.1%} EV={b.get('ev',0):.2f} {b['reason']}")
-                else:
-                    # 复式多选
-                    first = bets[0]
-                    print(f"  │ {first['match']} 【复式{len(bets)}选】")
-                    for b in bets:
-                        print(f"  │   [{b['play']}]{b['pick']}@{b['odds']} P={b.get('prob',0):.1%} EV={b.get('ev',0):.2f}")
-                    # 该场总概率（取最大单选项概率，因为结果是互斥的）
-                    field_prob = max(b.get('prob', 0) for b in bets)
-                    print(f"  │   → 最高单项概率:{field_prob:.1%}")
+                first = bets[0]
+                # 显示比赛名称+进球区间标签
+                picks_str = ' + '.join([b['pick'] for b in bets])
+                max_prob = max(b.get('prob', 0) for b in bets)
+                print(f"  │ {first['match']}")
+                print(f"  │   进球区间: {picks_str}  |  最高单项概率: {max_prob:.1%}")
+                for b in bets:
+                    print(f"  │     [{b['play']}]{b['pick']}@{b['odds']} P={b.get('prob',0):.1%}")
             print(f"  │ 💰 {cost}元 | ~{part['odds_x']}x | 预估回报:{part['ret']}元")
         print(f"\n  📋 {label}合计:{p['total_cost']}元")
     
-    # 规则合规
     if plan.get('plans'):
         comp = plan['plans'][0].get('compliance', {})
         if comp:
@@ -1622,7 +1615,7 @@ def print_plan(plan):
                 print(f"  🔢 建议倍投：{mult}倍 → 投入{total_all*mult}元 | 单票≤6000元")
             print(f"  ⚠️ {comp.get('rule_note','')}")
     
-    print(f"\n  💰 总投入:{total_all}元 | ⚠️ 每注2元 EV驱动+复式 | 理性投注！");print("="*80)
+    print(f"\n  💰 总投入:{total_all}元 | ⚠️ 每注2元 | 理性投注！");print("="*80)
 
 def calc_trigger_time(matches):
     """计算最优触发时间：取最早开赛时间T，返回T-1小时。如果T-1h已过则返回None（立即运行）"""

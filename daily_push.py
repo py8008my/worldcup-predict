@@ -34,13 +34,23 @@ def run_model(script):
 
 
 def build_email(all_outputs):
-    """合并两个模型的方案输出为HTML"""
+    """合并两个模型的方案输出为HTML邮件"""
     def esc(s):
         return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
     html = []
-    html.append('<div style="font-family:monospace;font-size:14px;line-height:1.8;color:#333;max-width:600px;">')
-    html.append(f'<div style="text-align:center;font-size:18px;font-weight:bold;color:#c0392b;padding:12px;">⚽ 世界杯方案 v7.3</div>')
+    # 邮件整体容器
+    html.append('<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:14px;color:#333;max-width:640px;margin:0 auto;">')
+    
+    # 标题栏
+    today = datetime.now().strftime("%m月%d日")
+    html.append(f'<div style="background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;text-align:center;padding:16px;border-radius:8px 8px 0 0;font-size:20px;font-weight:bold;">')
+    html.append(f'⚽ 世界杯竞彩方案 · {today}')
+    html.append(f'<div style="font-size:12px;font-weight:normal;opacity:0.85;margin-top:4px;">v7.3 实战比分模型 · 分类驱动 · 总进球复式</div>')
+    html.append('</div>')
+    
+    # 内容区
+    html.append('<div style="background:#fafafa;padding:12px 16px;border:1px solid #e0e0e0;border-top:none;">')
 
     for label, output in all_outputs:
         lines = output.strip().split('\n')
@@ -49,7 +59,7 @@ def build_email(all_outputs):
         plan_lines = []
         in_plan = False
         for line in lines:
-            if '今日高性价比方案' in line or '今日稳健方案' in line or '今日必胜方案' in line:
+            if '今日实战方案' in line or '今日必胜方案' in line:
                 in_plan = True
             if in_plan:
                 plan_lines.append(line)
@@ -57,7 +67,6 @@ def build_email(all_outputs):
                     break
 
         if not plan_lines:
-            # 找无数据提示
             skip_msg = None
             for line in lines:
                 if '无在售' in line or '无世界杯' in line:
@@ -66,51 +75,52 @@ def build_email(all_outputs):
                 html.append(f'<div style="color:#999;padding:8px;">{label}: {esc(skip_msg)}</div>')
             continue
 
-        # 解析方案
-        color_map = {'🔥 高性价比': '#c0392b', '🛡️ 稳健': '#2980b9', '💎 必胜': '#8e44ad'}
-        bg_map = {'🔥 高性价比': '#fdf2f2', '🛡️ 稳健': '#f0f4fa', '💎 必胜': '#f9f0fc'}
-        border_map = {'🔥 高性价比': '#c0392b', '🛡️ 稳健': '#2980b9', '💎 必胜': '#8e44ad'}
+        # 颜色配置
+        color_map = {'🔥 高性价比': '#c0392b', '💎 必胜': '#8e44ad'}
+        bg_map = {'🔥 高性价比': '#fef5f5', '💎 必胜': '#faf5fc'}
+        border_map = {'🔥 高性价比': '#e74c3c', '💎 必胜': '#9b59b6'}
         
         clr = color_map.get(label, '#333')
-        bg = bg_map.get(label, '#f8f9fa')
+        bg = bg_map.get(label, '#fafafa')
         border = border_map.get(label, '#999')
 
-        html.append(f'<div style="background:{bg};border-left:4px solid {border};padding:10px 14px;margin:10px 0;border-radius:4px;">')
-        html.append(f'<div style="color:{clr};font-weight:bold;font-size:16px;margin-bottom:6px;">{label}方案</div>')
+        html.append(f'<div style="background:{bg};border-left:3px solid {border};padding:10px 14px;margin:8px 0;border-radius:4px;">')
+        html.append(f'<div style="color:{clr};font-weight:bold;font-size:16px;margin-bottom:4px;">{label}方案</div>')
 
         in_detail = False
         for line in plan_lines:
             s = line.strip()
-            if not s:
-                continue
+            if not s: continue
             esc_s = esc(s)
 
-            if '今日高性价比方案' in s or '今日稳健方案' in s or '今日必胜方案' in s:
-                continue
-            if s.startswith('═══') or s.startswith('────'):
-                continue
+            if '今日实战方案' in s or '今日必胜方案' in s: continue
+            if s.startswith('═══') or s.startswith('────'): continue
 
             if s.startswith('▶'):
-                html.append(f'<div style="font-weight:bold;color:{clr};margin-top:6px;">{esc_s}</div>')
+                html.append(f'<div style="font-weight:bold;color:{clr};margin:6px 0 2px;">{esc_s}</div>')
                 continue
 
             if s.startswith('📝') or s.startswith('💰 投入'):
-                html.append(f'<div style="color:#888;font-size:11px;padding-left:8px;">{esc_s}</div>')
+                html.append(f'<div style="color:#999;font-size:11px;padding-left:4px;">{esc_s}</div>')
                 continue
 
             if s.startswith('┌'):
                 in_detail = True
-                html.append(f'<div style="background:#fff;border:1px solid #e0e0e0;border-radius:3px;padding:6px 10px;margin:4px 0;">')
-                html.append(f'<div style="font-size:11px;color:#e67e22;font-weight:bold;">{esc_s}</div>')
+                html.append(f'<div style="background:#fff;border:1px solid #eee;border-radius:4px;padding:8px 10px;margin:6px 0;">')
+                # 提取组标题
+                title = esc_s.replace('┌ 📌 ', '')
+                html.append(f'<div style="font-size:12px;color:{clr};font-weight:bold;margin-bottom:4px;">{title}</div>')
                 continue
 
             if s.startswith('│') and in_detail:
-                if '@' in s:
-                    html.append(f'<div style="color:#555;font-size:11px;padding-left:6px;border-left:2px solid #ddd;margin:1px 0 1px 6px;">{esc_s}</div>')
-                elif '→' in s:
-                    html.append(f'<div style="color:#27ae60;font-size:11px;padding-left:6px;">{esc_s}</div>')
+                if '进球区间' in s:
+                    html.append(f'<div style="color:{clr};font-size:12px;font-weight:bold;padding:2px 0 2px 8px;">{esc_s}</div>')
+                elif '@' in s:
+                    html.append(f'<div style="color:#555;font-size:11px;padding:1px 0 1px 16px;">{esc_s}</div>')
+                elif '💰' in s:
+                    html.append(f'<div style="color:#27ae60;font-size:11px;font-weight:bold;padding:3px 0 1px 4px;border-top:1px dashed #eee;margin-top:2px;">{esc_s}</div>')
                 else:
-                    html.append(f'<div style="color:#777;font-size:11px;padding-left:6px;">{esc_s}</div>')
+                    html.append(f'<div style="color:#777;font-size:11px;padding-left:8px;">{esc_s}</div>')
                 continue
 
             if in_detail and not s.startswith('│'):
@@ -118,25 +128,29 @@ def build_email(all_outputs):
                 in_detail = False
 
             if '合计' in s:
-                html.append(f'<div style="font-weight:bold;color:{clr};margin-top:2px;padding:4px 8px;">{esc_s}</div>')
+                html.append(f'<div style="font-weight:bold;color:{clr};margin-top:4px;padding:4px 8px;font-size:13px;">{esc_s}</div>')
                 continue
 
             if s.startswith('═══ 规则合规') or s.startswith('📏') or s.startswith('🔢') or s.startswith('⚠️'):
-                html.append(f'<div style="color:#666;font-size:10px;padding-left:8px;">{esc_s}</div>')
+                html.append(f'<div style="color:#aaa;font-size:10px;padding:1px 0 1px 8px;">{esc_s}</div>')
                 continue
 
             if '总投入' in s:
-                html.append(f'<div style="background:#fff;border:1px solid {border};border-radius:3px;padding:4px 8px;margin:4px 0;font-weight:bold;color:{clr};font-size:12px;">{esc_s}</div>')
+                html.append(f'<div style="background:#fff;border:2px solid {border};border-radius:4px;padding:6px 10px;margin:6px 0;font-weight:bold;color:{clr};font-size:13px;text-align:center;">{esc_s}</div>')
                 continue
 
         if in_detail:
             html.append('</div>')
         html.append('</div>')  # 关闭模型块
 
+    html.append('</div>')  # 关闭内容区
+
     # 底部
-    html.append('<div style="margin-top:16px;padding-top:10px;border-top:1px solid #eee;color:#999;font-size:11px;">')
-    html.append(f'生成时间：{datetime.now().strftime("%Y-%m-%d %H:%M")} | 模型 v7.3 比分复式+分类驱动 | 理性投注 仅供娱乐')
+    html.append(f'<div style="text-align:center;color:#bbb;font-size:11px;padding:10px 0;border-top:1px solid #eee;margin-top:8px;">')
+    html.append(f'生成时间：{datetime.now().strftime("%Y-%m-%d %H:%M")}<br>')
+    html.append('模型 v7.3 · 比赛分类驱动 · 总进球复式2串1 · 理性投注 仅供娱乐')
     html.append('</div>')
+    html.append('</div>')  # 关闭整体容器
 
     return '\n'.join(html), False
 
@@ -175,7 +189,7 @@ def main():
     html_body, is_skip = build_email(all_outputs)
 
     today = datetime.now().strftime("%m-%d")
-    subject = f"⚽ 世界杯方案 {today} | v7.3 比分复式+分类驱动"
+    subject = f"⚽ 世界杯竞彩方案 {today} | v7.3 实战比分"
 
     send_email(subject, html_body)
     print(f"✅ 已发送到 {SMTP_CONFIG['to']}")
