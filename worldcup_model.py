@@ -1089,6 +1089,11 @@ def _gen_smart_plan(scored):
     }
     COMMON_SCORE_BONUS = 0.4  # 常见比分加权系数
     
+    # 世界杯总进球实际分布（93场校准数据）
+    # 1球19.4% + 2球19.4% + 3球19.4% = 58.2%集中在1-3球
+    TTG_FREQ = {0: 8.6, 1: 19.4, 2: 19.4, 3: 19.4, 4: 16.1, 5: 6.5, 6: 8.6, 7: 0, 8: 2.2}
+    TTG_FREQ_BONUS = 0.6  # 总进球频率加权系数（加大，让2球3球排前面）
+    
     # ── 第一步：提取投注选项 ──
     all_bets = []
     match_bets_map = {}
@@ -1132,6 +1137,13 @@ def _gen_smart_plan(scored):
             # 常见比分加权
             if play == '比分' and pick in COMMON_SCORES:
                 value_score *= (1.0 + COMMON_SCORE_BONUS)
+            
+            # 总进球频率加权：2球3球是最高频的，加权提升
+            if play == '总进球':
+                goal_num = int(pick.replace('球', '')) if '球' in pick else -1
+                if goal_num in TTG_FREQ:
+                    freq = TTG_FREQ[goal_num] / 20.0  # 归一化到0-1
+                    value_score *= (1.0 + freq * TTG_FREQ_BONUS)
             
             bet = {
                 'mid': mid, 'match': match_name, 'play': play,
