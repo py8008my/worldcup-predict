@@ -1293,14 +1293,22 @@ def _gen_smart_plan(scored):
                     combo_value = sum(b['value_score'] for b in sel_a + sel_b)
                     combo_value *= (1.0 + budget_bonus * 0.25)
                     
+                    # 最高单注赔率（取所有组合中赔率乘积最大的）
+                    max_single_odds = 0.0
+                    for b_a in sel_a:
+                        for b_b in sel_b:
+                            single_odds = b_a['odds'] * b_b['odds']
+                            if single_odds > max_single_odds:
+                                max_single_odds = single_odds
+                    
                     best_plans.append({
                         'type': f"比分2串1({notes}注)",
                         'groups': {mid_a: sel_a, mid_b: sel_b},
                         'bets': sel_a + sel_b,
                         'cost': cost, 'notes': notes,
                         'ev_product': round(combo_ev, 3),
-                        'odds_x': round(combo_odds, 1),
-                        'ret': round(2 * combo_odds, 1),
+                        'max_odds': round(max_single_odds, 1),
+                        'max_ret': round(2 * max_single_odds, 1),
                         'combo_value': round(combo_value, 4),
                         'note': f"比分2串1 {notes}注 | EV={combo_ev:.2f} | 倍率={combo_odds:.1f}x"
                     })
@@ -1333,14 +1341,23 @@ def _gen_smart_plan(scored):
                     combo_ev = combo_prob * combo_odds
                     combo_value = sum(b['value_score'] for b in sel) * 1.2
                     
+                    # 最高单注赔率
+                    max_single_odds = 0.0
+                    for b_a in crs_a:
+                        for b_b in crs_b:
+                            for b_c in crs_c:
+                                single_odds = b_a['odds'] * b_b['odds'] * b_c['odds']
+                                if single_odds > max_single_odds:
+                                    max_single_odds = single_odds
+                    
                     best_plans.append({
                         'type': f"比分3串1({notes}注)",
                         'groups': {mid_a: crs_a, mid_b: crs_b, mid_c: crs_c},
                         'bets': sel,
                         'cost': cost, 'notes': notes,
                         'ev_product': round(combo_ev, 3),
-                        'odds_x': round(combo_odds, 1),
-                        'ret': round(2 * combo_odds, 1),
+                        'max_odds': round(max_single_odds, 1),
+                        'max_ret': round(2 * max_single_odds, 1),
                         'combo_value': round(combo_value, 4),
                         'note': f"比分3串1 {notes}注 | EV={combo_ev:.2f} | 倍率={combo_odds:.1f}x"
                     })
@@ -1380,14 +1397,22 @@ def _gen_smart_plan(scored):
                     # 总进球命中率天然高，加分
                     combo_value *= 1.1
                     
+                    # 最高单注赔率
+                    max_single_odds = 0.0
+                    for b_a in sel_a:
+                        for b_b in sel_b:
+                            single_odds = b_a['odds'] * b_b['odds']
+                            if single_odds > max_single_odds:
+                                max_single_odds = single_odds
+                    
                     best_plans.append({
                         'type': f"总进球2串1({notes}注)",
                         'groups': {mid_a: sel_a, mid_b: sel_b},
                         'bets': sel_a + sel_b,
                         'cost': cost, 'notes': notes,
                         'ev_product': round(combo_ev, 3),
-                        'odds_x': round(combo_odds, 1),
-                        'ret': round(2 * combo_odds, 1),
+                        'max_odds': round(max_single_odds, 1),
+                        'max_ret': round(2 * max_single_odds, 1),
                         'combo_value': round(combo_value, 4),
                         'note': f"总进球2串1 {notes}注 | EV={combo_ev:.2f} | 倍率={combo_odds:.1f}x"
                     })
@@ -1499,7 +1524,7 @@ def _gen_smart_plan(scored):
         plan_parts = [best_plans[0]]
     
     total_cost = sum(p['cost'] for p in plan_parts)
-    max_odds = max((p['odds_x'] for p in plan_parts), default=0)
+    max_odds = max((p.get('max_odds', 0) for p in plan_parts), default=0)
     avg_ev = sum(p.get('ev_product', 0) for p in plan_parts) / max(len(plan_parts), 1)
     
     label = '🔥🔥🔥 实战比分方案' if avg_ev >= 0.8 else '🔥🔥 实战比分方案'
@@ -1519,7 +1544,7 @@ def gen_plan(scored):
     smart = _gen_smart_plan(avail)
     
     # 奖金限额检查（从groups中提取关数）
-    max_odds = max((p.get('odds_x', 0) for p in smart.get('parts', [])), default=0)
+    max_odds = max((p.get('max_odds', 0) for p in smart.get('parts', [])), default=0)
     notes = smart.get('parts', [])
     guan_count = 0
     for p in notes:
@@ -1602,7 +1627,7 @@ def print_plan(plan):
                 print(f"  │   进球区间: {picks_str}  |  最高单项概率: {max_prob:.1%}")
                 for b in bets:
                     print(f"  │     [{b['play']}]{b['pick']}@{b['odds']} P={b.get('prob',0):.1%}")
-            print(f"  │ 💰 {cost}元 | ~{part['odds_x']}x | 预估回报:{part['ret']}元")
+            print(f"  │ 💰 {cost}元 | 最高单注赔率:{part['max_odds']}x | 最高回报:{part['max_ret']}元")
         print(f"\n  📋 {label}合计:{p['total_cost']}元")
     
     if plan.get('plans'):
