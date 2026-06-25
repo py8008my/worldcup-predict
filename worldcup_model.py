@@ -1188,30 +1188,53 @@ def _gen_smart_plan(scored):
         return {'label': '⚠️ 高性价比方案', 'parts': [], 'total_cost': 0,
                 'note': '可投注比赛不足'}
     
-    # ── 第二步：每场比赛独立评估 ──
-    # 强制策略：每场总进球TOP3 = 1球 + 2球(或3球) + 4球
-    # 世界杯实际分布：1球19.4%/2球19.4%/3球19.4%/4球16.1%——这四种覆盖74%
+    # ── 第二步：每场比赛按特征分类，不同比赛不同总进球组合 ──
+    # 根据赔率结构判断比赛类型
+    # 防守型（强队赔率低+平赔低）→ 0+1+2球
+    # 均衡型（赔率适中）→ 1+2+3球
+    # 开放型（强弱分明/高进球预期）→ 2+3+4球
     match_picks = {}
     for mid, bets in match_bets_map.items():
         crs_top = [b for b in bets if b['play'] == '比分'][:3]
-        
-        # 总进球：硬编码TOP3 = 1球 + 2球 + 4球
         ttg_all = [b for b in bets if b['play'] == '总进球']
         
         def _pick_goal(goal_str):
             return next((b for b in ttg_all if b['pick'] == goal_str), None)
         
+        # 判断比赛类型：用胜平负赔率
+        sm_match = next((s for s in scored if s['match']['match_num_str'] == mid), None)
+        had_h = sm_match['match'].get('had_h', 2.0) if sm_match else 2.0
+        had_d = sm_match['match'].get('had_d', 3.5) if sm_match else 3.5
+        had_a = sm_match['match'].get('had_a', 3.0) if sm_match else 3.0
+        
+        # 类型判定
+        min_odds = min(had_h, had_d, had_a)
+        spread = max(had_h, had_a) - min(had_h, had_a)
+        max_odds = max(had_h, had_d, had_a)
+        
+        if min_odds < 1.4:
+            # 超级热门：强弱悬殊 → 2+3+4球（大球预期）
+            goal_pattern = ['2球', '3球', '4球']
+            match_type = '开放型'
+        elif min_odds < 1.8 and had_d < 3.5:
+            # 防守型：热门+低平赔 → 0+1+2球（小球预期）
+            goal_pattern = ['0球', '1球', '2球']
+            match_type = '防守型'
+        elif spread < 0.8:
+            # 势均力敌 → 1+2+3球（均衡）
+            goal_pattern = ['1球', '2球', '3球']
+            match_type = '均势型'
+        else:
+            # 默认均衡 → 1+2+3球
+            goal_pattern = ['1球', '2球', '3球']
+            match_type = '均衡型'
+        
         ttg_top = []
-        for goal in ['1球', '2球', '4球']:
+        for goal in goal_pattern:
             b = _pick_goal(goal)
             if b and b not in ttg_top:
                 ttg_top.append(b)
-        # 2球不存在用3球
-        if not any(b['pick'] == '2球' for b in ttg_top):
-            b3 = _pick_goal('3球')
-            if b3 and b3 not in ttg_top:
-                ttg_top.insert(1, b3)
-        # 不足3个补value_score最高者
+        # 不足3个用相邻球数补
         if len(ttg_top) < 3:
             for b in ttg_all:
                 if b not in ttg_top:
@@ -1223,6 +1246,7 @@ def _gen_smart_plan(scored):
             'crs': crs_top,
             'ttg': ttg_top[:3],
             'all': bets[:6],
+            'type': match_type,
         }
     
     mids_sorted = sorted(match_picks.keys(),
@@ -1383,17 +1407,64 @@ def _gen_smart_plan(scored):
     used_notes = 0
     
     # 总进球做主力（覆盖面大，概率高），比分做点缀
-    # 总进球为主（多套组合，利用放宽的预算空间）
+    # 优先选不同比赛类型的组合，增加多样性
+    # 核心原则：优先覆盖3种类型（防守/均衡/开放），各取一场
     if ttg_only:
+        # 按类型分桶
+        by_type = {'防守型': [], '均衡型': [], '开放型': [], '均势型': []}
         for plan in ttg_only:
-            if used_notes >= 18:
-                break
-            if used_notes + plan['notes'] > 18:
-                continue
+            for mid in plan['groups']:
+                mp = match_picks.get(mid, {})
+                mt = mp.get('type', '均衡型')
+                if plan not in by_type.get(mt, []):
+                    by_type.setdefault(mt, []).append(plan)
+        
+        # 策略：选不同比赛，覆盖不同进球区间
+        used_mids = set()
+        
+        # 第一组：均衡型+均衡型（覆盖123球，最常见）
+        for plan in by_type.get('均衡型', []):
+            if used_notes >= 18: break
+            if used_notes + plan['notes'] > 18: continue
+            plan_mids = set(plan['groups'].keys())
+            if plan_mids & used_mids: continue
             plan_parts.append(plan)
             used_notes += plan['notes']
-            if used_notes >= 12:
-                break
+            used_mids.update(plan_mids)
+            break
+        
+        # 第二组：开放型+防守型（覆盖234和012，互补）
+        if used_notes < 18:
+            open_plans = by_type.get('开放型', [])
+            def_plans = by_type.get('防守型', [])
+            # 构建开放×防守的2串1（在ttg_only中找）
+            for plan in ttg_only:
+                if used_notes >= 18: break
+                if used_notes + plan['notes'] > 18: continue
+                plan_mids = set(plan['groups'].keys())
+                if plan_mids & used_mids: continue
+                # 检查是否一个开放一个防守
+                plan_types = set()
+                for mid in plan['groups']:
+                    mp = match_picks.get(mid, {})
+                    plan_types.add(mp.get('type', ''))
+                if '开放型' in plan_types and '防守型' in plan_types:
+                    plan_parts.append(plan)
+                    used_notes += plan['notes']
+                    used_mids.update(plan_mids)
+                    break
+        
+        # 第三组：不够再随便补
+        if used_notes < 12:
+            for plan in ttg_only:
+                if used_notes >= 18: break
+                if used_notes + plan['notes'] > 18: continue
+                plan_mids = set(plan['groups'].keys())
+                if plan_mids & used_mids: continue
+                plan_parts.append(plan)
+                used_notes += plan['notes']
+                used_mids.update(plan_mids)
+                if used_notes >= 12: break
     
     # 比分点缀
     if used_notes < 18 and pure_crs:
