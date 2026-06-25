@@ -181,7 +181,63 @@ def fetch_results():
         pass  # 静默跳过
     return results
 
-# ── v4.0 新增数据源 ──
+def fetch_results_v2():
+    """
+    v6.0: 从 worldcup26.ir 免费API获取已赛比分
+    ==============================================
+    API: https://worldcup26.ir/get/games (无需Key)
+    返回JSON格式的所有104场比赛，包含 home_score/away_score/finished
+    """
+    results = []
+    try:
+        # 获取比赛数据
+        url_games = "https://worldcup26.ir/get/games"
+        url_teams = "https://worldcup26.ir/get/teams"
+        hdrs = {"User-Agent":"Mozilla/5.0","Accept":"application/json"}
+        ctx = ssl.create_default_context()
+        
+        # 获取球队名称映射
+        req_teams = urllib.request.Request(url_teams, headers=hdrs)
+        with urllib.request.urlopen(req_teams, context=ctx, timeout=15) as r:
+            teams_data = json.loads(r.read().decode('utf-8'))
+        teams_list = teams_data if isinstance(teams_data, list) else teams_data.get('teams', [])
+        team_map = {str(t['id']): t.get('name_en', '?') for t in teams_list}
+        
+        # 获取比赛数据
+        req_games = urllib.request.Request(url_games, headers=hdrs)
+        with urllib.request.urlopen(req_games, context=ctx, timeout=15) as r:
+            games_data = json.loads(r.read().decode('utf-8'))
+        games = games_data.get('games', games_data if isinstance(games_data, list) else [])
+        
+        # 过滤已完成比赛
+        finished = [g for g in games if str(g.get('finished', '')).upper() == 'TRUE']
+        
+        for g in finished:
+            hid = str(g.get('home_team_id', ''))
+            aid = str(g.get('away_team_id', ''))
+            home = team_map.get(hid, f'Team{hid}')
+            away = team_map.get(aid, f'Team{aid}')
+            
+            try:
+                hs = int(g.get('home_score', 0))
+                aw = int(g.get('away_score', 0))
+            except:
+                continue
+            
+            total = hs + aw
+            had = '主胜' if hs > aw else ('平' if hs == aw else '客胜')
+            
+            results.append({
+                'date': datetime.now().strftime('%Y-%m-%d'),
+                'match': f"{home}vs{away}",
+                'score': f"{hs}:{aw}",
+                'goals': total,
+                'had': had
+            })
+    except Exception as e:
+        pass  # 静默失败，不影响主流程
+    
+    return results
 
 def fetch_team_stats():
     """
@@ -1037,9 +1093,10 @@ def _gen_smart_plan(scored):
     import itertools as it
     import math as _m
     
-    BUDGET_YUAN = 10
-    MAX_NOTES = BUDGET_YUAN // 2  # 5注
+    BUDGET_YUAN = 30
+    MAX_NOTES = BUDGET_YUAN // 2  # 15注
     MAX_ODDS = 200  # 最高赔率限制
+    PLAN_MAX_GROUPS = 1  # v6.0: 只出1组方案
     HIGH_PROB_THRESHOLD = 0.50  # 高概率选项门槛：P≥50%
     
     # 按冷门评分排序，取TOP比赛
@@ -1219,8 +1276,10 @@ def _gen_smart_plan(scored):
         return {'label': '⚠️ 博冷方案', 'parts': [], 'total_cost': 0,
                 'note': '今日无高概率串关选项（P≥50%）'}
     
-    # 宝藏冷门按综合分排序（冷门评分×偏离度）
-    cold_candidates.sort(key=lambda x: -x.get('treasure_score', 0))
+    # v6.0: 性价比排序（概率×log赔率），替代旧的综合分排序
+    for b in cold_candidates:
+        b['value_score'] = b.get('prob', 0.01) * _m.log(max(b.get('odds', 1.5), 1.5), 2)
+    cold_candidates.sort(key=lambda x: -x.get('value_score', 0))
     # 高概率选项按概率降序
     high_prob_bets.sort(key=lambda x: -x['prob'])
     
@@ -1266,8 +1325,8 @@ def _gen_smart_plan(scored):
             'note': f"{ctype} | EV={combo_ev:.2f} | P={combo_prob:.2%} | {total_notes}注{cost}元 | 冷门:{cold_bet['pick']}@{cold_bet['odds']}×高概率P={high_set['prob']:.1%}"
         }, total_notes
     
-    # 选TOP 1-2个宝藏冷门选项，和高概率选项串关
-    for cold_bet in cold_candidates[:2]:
+    # 选TOP 1个宝藏冷门选项，和高概率选项串关（v6.0: 只出1组）
+    for cold_bet in cold_candidates[:1]:
         for high_set in high_prob_bets:
             # 同一场比赛不能出现在同一注里
             if cold_bet['mid'] == high_set['mid']:
@@ -1555,61 +1614,20 @@ def main():
 
 def auto_update_results(kb):
     """
-    v6.0 每日赛果自动更新 — 从多个来源抓取已赛比分
-    =================================================
-    1. 尝试 fifawatch.com（正则抓取）
-    2. 如果失败，尝试从 odds_snapshots 中已完赛的比赛推断
-    3. 回写 knowledge_base.json
+    v6.0 每日赛果自动更新 — 从 worldcup26.ir API 获取已赛比分
     """
     added = 0
-    # 来源1: fifawatch
     try:
-        new_results = fetch_results()
+        new_results = fetch_results_v2()
         if new_results:
             added = update_kb_results(kb, new_results)
     except:
         pass
     
-    # 来源2: 从fifawatch网页手动解析（备用）
-    if added == 0:
-        try:
-            import re
-            url = "https://fifawatch.com/zh/"
-            hdrs = {"User-Agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)","Accept-Language":"zh-CN,zh;q=0.9"}
-            ctx = ssl.create_default_context()
-            req = urllib.request.Request(url, headers=hdrs)
-            with urllib.request.urlopen(req, context=ctx, timeout=15) as r:
-                html = r.read().decode('utf-8')
-            
-            # 匹配 "最终比分 队A X:Y 队B" 格式
-            pattern = r'最终比分\s*([\u4e00-\u9fa5]{2,6})\s*(?:TUR|BRA|SCO|USA|NED|GER|ECU|TUN|[A-Z]{3})?\s*(\d+):(\d+)\s*([\u4e00-\u9fa5]{2,6})'
-            seen = set()
-            results = []
-            for m in re.finditer(pattern, html):
-                home = m.group(1); hg = int(m.group(2)); ag = int(m.group(3)); away = m.group(4)
-                key = (home, away)
-                if key in seen: continue
-                seen.add(key)
-                total = hg + ag
-                had = '主胜' if hg>ag else ('平' if hg==ag else '客胜')
-                results.append({
-                    'date': datetime.now().strftime('%Y-%m-%d'),
-                    'match': f"{home}vs{away}",
-                    'score': f"{hg}:{ag}",
-                    'goals': total,
-                    'had': had
-                })
-            
-            if results:
-                added = update_kb_results(kb, results)
-        except:
-            pass
-    
     if added > 0:
         save_kb(kb)
-        # 重新计算校准
         cal = _load_calibration(kb)
-        print(f"📊 赛果回写:{added}场 → 总计{cal['total_matches']}场 | 低球={cal['low_goal_prob']:.1%} 高球={cal['high_goal_prob']:.1%}")
+        print(f"📊 赛果回写:{added}场 → 总计{cal['total_matches']}场 | 0-1球={cal['low_goal_prob']:.1%} 3+球={cal['high_goal_prob']:.1%}")
     
     return added
 
