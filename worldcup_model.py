@@ -1577,6 +1577,57 @@ def gen_plan(scored):
 # 5. 输出
 # ═══════════════════════════════════════════
 
+def print_worldcup_summary(kb):
+    """v7.3: 打印世界杯赛况汇总（已赛结果+进球分布+胜平负分布）"""
+    matches = kb.get('matches', [])
+    if not matches:
+        return
+    
+    # 按日期分组
+    by_date = {}
+    for m in matches:
+        d = m.get('date', '?')
+        if d not in by_date:
+            by_date[d] = []
+        by_date[d].append(m)
+    
+    total = len(matches)
+    goals = [m.get('goals', 0) for m in matches if 'goals' in m]
+    hads = [m.get('had', '') for m in matches if m.get('had')]
+    
+    print(f"\n{'='*80}")
+    print(f"  🌍 2026世界杯赛况汇总 | 截至{datetime.now().strftime('%m-%d')} | 共{total}场")
+    print(f"{'='*80}")
+    
+    # 进球分布
+    if goals:
+        from collections import Counter
+        gc = Counter(goals)
+        print(f"\n  ⚽ 进球分布:")
+        for g in sorted(gc.keys()):
+            bar = '█' * int(gc[g] / max(gc.values()) * 30)
+            print(f"    {g}球: {bar} {gc[g]}场 ({gc[g]/total*100:.1f}%)")
+    
+    # 胜平负分布
+    if hads:
+        hc = Counter(hads)
+        print(f"\n  📊 胜平负分布:")
+        for r in ['主胜', '平', '客胜']:
+            cnt = hc.get(r, 0)
+            bar = '█' * int(cnt / total * 30) if total > 0 else ''
+            print(f"    {r}: {bar} {cnt}场 ({cnt/total*100:.1f}%)")
+    
+    # 最近5场
+    print(f"\n  📅 最近赛果:")
+    recent = sorted(matches, key=lambda x: x.get('date', ''), reverse=True)[:8]
+    for m in recent:
+        d = m.get('date', '?')
+        match = m.get('match', '?')
+        score = m.get('score', '?:?')
+        print(f"    {d}  {match}  {score}")
+    
+    print(f"{'='*80}\n")
+
 def print_analysis(scored,kb):
     print("="*80)
     print(f"   ⚽ 世界杯实战分析 v7.3 | {datetime.now().strftime('%m-%d %H:%M')} | 知识库:{len(kb.get('matches',[]))}场/{len(kb.get('teams_stats',kb.get('teams',{})))}队")
@@ -1611,23 +1662,34 @@ def print_plan(plan):
         label=p.get('label','方案')
         print(f"\n  ▶ {label}")
         print(f"  📝 {p.get('note','')}")
-        print(f"  💰 投入:{p['total_cost']}元")
         total_all+=p['total_cost']
         for i, part in enumerate(p.get('parts',[]), 1):
             typ=part['type']
             cost = part.get('cost', 2)
+            notes = part.get('notes', 1)
             groups = part.get('groups', {})
             print(f"\n  ┌ 📌 第{i}组:{typ} | {part['note']}")
+            
+            # 计算回报区间（最低赔率组合→最高赔率组合）
+            mids_list = list(groups.keys())
+            bets_a = groups[mids_list[0]]
+            bets_b = groups[mids_list[1]]
+            all_combos = [ba['odds'] * bb['odds'] for ba in bets_a for bb in bets_b]
+            min_combo = min(all_combos)
+            max_combo = max(all_combos)
+            
             for mid, bets in groups.items():
                 first = bets[0]
-                # 显示比赛名称+进球区间标签
                 picks_str = ' + '.join([b['pick'] for b in bets])
                 max_prob = max(b.get('prob', 0) for b in bets)
                 print(f"  │ {first['match']}")
                 print(f"  │   进球区间: {picks_str}  |  最高单项概率: {max_prob:.1%}")
                 for b in bets:
                     print(f"  │     [{b['play']}]{b['pick']}@{b['odds']} P={b.get('prob',0):.1%}")
-            print(f"  │ 💰 {cost}元 | 最高单注赔率:{part['max_odds']}x | 最高回报:{part['max_ret']}元")
+            
+            min_ret = round(2 * min_combo, 1)
+            max_ret = round(2 * max_combo, 1)
+            print(f"  │ 💰 {cost}元({notes}注×2元) | 赔率: {min_combo:.0f}~{max_combo:.0f}x | 回报: {min_ret}~{max_ret}元")
         print(f"\n  📋 {label}合计:{p['total_cost']}元")
     
     if plan.get('plans'):
@@ -1668,7 +1730,7 @@ def calc_trigger_time(matches):
 # ═══════════════════════════════════════════
 
 def main():
-    print("🔄 获取体彩数据 + 加载知识库 (v7.0 高性价比)...")
+    print("🔄 获取体彩数据 + 加载知识库 (v7.3 实战比分)...")
     kb=load_knowledge_base()
     # v6.0: 每日赛果自动更新
     try:
@@ -1703,6 +1765,10 @@ def main():
     calibration = _load_calibration(kb)
     if calibration['total_matches'] > 0:
         print(f"📊 概率校准: {calibration['total_matches']}场赛果 | 低进球={calibration['low_goal_prob']:.1%} 中={calibration['mid_goal_prob']:.1%} 高={calibration['high_goal_prob']:.1%}")
+    
+    # v7.3: 打印世界杯赛况汇总
+    print_worldcup_summary(kb)
+    
     try:
         raw=fetch_sporttery()
         matches=parse_matches(raw)
