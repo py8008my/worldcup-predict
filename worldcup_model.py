@@ -1066,22 +1066,21 @@ def _combo_ev(bets):
 
 def _gen_smart_plan(scored):
     """
-    高性价比方案 v7.0 — 纯价值分析
-    ==============================
+    高性价比方案 v7.1 — 复式多选过关
+    ================================
     核心思路：
     ① 所有比赛、所有玩法按 value_score = prob × log₂(odds) 统一排序
-    ② 构建串关组合时强制多样性：同一比赛+选项不重复使用
-    ③ 贪心+轮换策略：优先用TOP比赛，但用完即跳过
-    ④ 30元预算，只出1组方案
+    ② 选TOP比赛，每场复式多选（最多3个方向），组成2串1复式
+    ③ 集中火力：用复式多选把30元压到1-2套组合上
+    ④ 预算≈30元，控制在24-32元之间
     """
-    import itertools as it
     import math as _m
     
     BUDGET_YUAN = 30
-    MAX_NOTES = BUDGET_YUAN // 2  # 15注
+    MAX_NOTES = 16  # 允许32元以内
     MAX_ODDS = 250
     
-    # ── 第一步：所有比赛统一提取投注选项 ──
+    # ── 第一步：所有比赛提取投注选项 ──
     all_bets = []
     match_bets_map = {}
     
@@ -1132,58 +1131,37 @@ def _gen_smart_plan(scored):
         return {'label': '⚠️ 高性价比方案', 'parts': [], 'total_cost': 0,
                 'note': '可投注选项不足'}
     
-    # ── 第二步：贪心+轮换构建组合 ──
-    # 策略：
-    # 1. 从value_score最高的比赛开始，选TOP-1或TOP-2选项
-    # 2. 配对另一场比赛的选项，组成2串1
-    # 3. 每对(mid_i, mid_j)只出一个组合
-    # 4. 优先选不同的比赛对，保证覆盖多样化
-    
-    # 按比赛汇总TOP选项
+    # ── 第二步：按比赛汇总TOP-N选项 ──
+    # 每场取value_score最高的几个选项
     match_tops = {}
     for mid, bets in match_bets_map.items():
-        match_tops[mid] = bets[:3]  # 每场取TOP3
+        match_tops[mid] = bets[:5]  # TOP5
     
-    mids_sorted = sorted(match_tops.keys(), 
+    mids_sorted = sorted(match_tops.keys(),
                          key=lambda m: match_tops[m][0]['value_score'] if match_tops[m] else 0,
                          reverse=True)
     
-    plan_parts = []
-    used_notes = 0
-    used_pairs = set()  # (mid_a, mid_b) 对，每对只出一次
-    used_mids_count = {}  # mid → 出现次数
+    # ── 第三步：找最优的复式2串1组合 ──
+    # 策略：每场2-4选复式，组成2串1，凑到接近30元
+    # 目标：notes ∈ [10, 16] → 20-32元
     
-    # 贪心：遍历所有比赛对，每对取一个最优组合
-    # 第一轮：每场比赛最多1次
+    best_combo = None
+    best_value = -1
+    
     for i in range(len(mids_sorted)):
-        if used_notes >= MAX_NOTES:
-            break
-        mid_a = mids_sorted[i]
-        if used_mids_count.get(mid_a, 0) >= 1:
-            continue
         for j in range(i+1, len(mids_sorted)):
-            if used_notes >= MAX_NOTES:
-                break
-            mid_b = mids_sorted[j]
-            if used_mids_count.get(mid_b, 0) >= 1:
-                continue
-            pair_key = tuple(sorted([mid_a, mid_b]))
-            if pair_key in used_pairs:
-                continue
-            
+            mid_a, mid_b = mids_sorted[i], mids_sorted[j]
             bets_a = match_tops[mid_a]
             bets_b = match_tops[mid_b]
             
-            # 尝试不同复式组合：1×1, 1×2, 2×1, 2×2
-            best_part = None
-            best_value = -1
-            
-            for na in [1, 2]:
+            # 每场2-4选（实战合理范围）
+            for na in [2, 3, 4]:
                 if na > len(bets_a): continue
-                for nb in [1, 2]:
+                for nb in [2, 3, 4]:
                     if nb > len(bets_b): continue
                     notes = na * nb
-                    if used_notes + notes > MAX_NOTES:
+                    # 严格≤15注=30元
+                    if notes < 8 or notes > 15:
                         continue
                     
                     sel_a = bets_a[:na]
@@ -1197,77 +1175,75 @@ def _gen_smart_plan(scored):
                     
                     combo_value = sum(b['value_score'] for b in sel_a + sel_b)
                     
+                    # 加权：notes=12(24元)或15(30元)最理想
+                    ideal = 13.5
+                    budget_bonus = 1.0 - abs(notes - ideal) / 8.0
+                    combo_value *= (1.0 + budget_bonus * 0.2)
+                    
                     if combo_value > best_value:
                         best_value = combo_value
-                        best_part = (sel_a, sel_b, notes, combo_prob, combo_odds, combo_value)
-            
-            if best_part:
-                sel_a, sel_b, notes, combo_prob, combo_odds, combo_value = best_part
-                cost = notes * 2
-                combo_ev = combo_prob * combo_odds
-                
-                part = {
-                    'type': f"2串1{'复' if notes>1 else ''}",
-                    'bets': sel_a + sel_b,
-                    'groups': {mid_a: sel_a, mid_b: sel_b},
-                    'cost': cost, 'notes': notes,
-                    'ev_product': round(combo_ev, 3),
-                    'odds_x': round(combo_odds, 1),
-                    'ret': round(2 * combo_odds, 1),
-                    'combo_value': round(combo_value, 4),
-                    'note': f"2串1{notes}注 | EV={combo_ev:.2f} | 倍率={combo_odds:.1f}x"
-                }
-                plan_parts.append(part)
-                used_notes += notes
-                used_pairs.add(pair_key)
-                used_mids_count[mid_a] = used_mids_count.get(mid_a, 0) + 1
-                used_mids_count[mid_b] = used_mids_count.get(mid_b, 0) + 1
-                # mid_a 用过了，不再和其他比赛配对
-                break
+                        best_combo = (mid_a, mid_b, sel_a, sel_b, notes, combo_prob, combo_odds)
     
-    # 如果还没用完，尝试3串1
-    if used_notes < MAX_NOTES and len(mids_sorted) >= 3:
-        for i in range(len(mids_sorted)):
-            for j in range(i+1, len(mids_sorted)):
-                for k in range(j+1, len(mids_sorted)):
-                    if used_notes >= MAX_NOTES:
-                        break
-                    mid_a, mid_b, mid_c = mids_sorted[i], mids_sorted[j], mids_sorted[k]
-                    ba = match_tops[mid_a][:1]
-                    bb = match_tops[mid_b][:1]
-                    bc = match_tops[mid_c][:1]
-                    if not (ba and bb and bc):
-                        continue
-                    notes = 1
-                    if used_notes + notes > MAX_NOTES:
-                        continue
+    # ── 第四步：如果不到30元，尝试用3×5或5×3补 ──
+    used_notes = best_combo[4] if best_combo else 0
+    
+    if best_combo and used_notes < 15:
+        mid_a, mid_b = best_combo[0], best_combo[1]
+        # 尝试扩展到5选（如果候选够多）
+        bets_a = match_tops[mid_a]
+        bets_b = match_tops[mid_b]
+        
+        for na in [4, 5]:
+            if na > len(bets_a): continue
+            for nb in [3, 4, 5]:
+                if nb > len(bets_b): continue
+                notes = na * nb
+                if 14 <= notes <= 15:  # 28-30元
+                    sel_a = bets_a[:na]
+                    sel_b = bets_b[:nb]
                     
-                    sel = ba + bb + bc
                     combo_prob = 1.0
                     combo_odds = 1.0
-                    for b in sel:
+                    for b in sel_a + sel_b:
                         combo_prob *= b['prob']
                         combo_odds *= b['odds']
                     
-                    part = {
-                        'type': '3串1', 'bets': sel,
-                        'groups': {mid_a: ba, mid_b: bb, mid_c: bc},
-                        'cost': 2, 'notes': 1,
-                        'ev_product': round(combo_prob * combo_odds, 3),
-                        'odds_x': round(combo_odds, 1),
-                        'ret': round(2 * combo_odds, 1),
-                        'combo_value': round(sum(b['value_score'] for b in sel), 4),
-                        'note': f"3串1 | EV={combo_prob * combo_odds:.2f} | 倍率={combo_odds:.1f}x"
-                    }
-                    plan_parts.append(part)
-                    used_notes += notes
+                    combo_value = sum(b['value_score'] for b in sel_a + sel_b)
+                    
+                    if combo_value > best_value:
+                        best_value = combo_value
+                        best_combo = (mid_a, mid_b, sel_a, sel_b, notes, combo_prob, combo_odds)
+                        used_notes = notes
+    
+    # 重新构建方案
+    plan_parts = []
+    if best_combo:
+        mid_a, mid_b, sel_a, sel_b, notes, combo_prob, combo_odds = best_combo
+        cost = notes * 2
+        combo_ev = combo_prob * combo_odds
+        
+        # 同场命中概率：取最大概率（因为各选项互斥，实际命中≈最大那个）
+        hit_a = max(b['prob'] for b in sel_a)
+        hit_b = max(b['prob'] for b in sel_b)
+        
+        part = {
+            'type': f"2串1复式({notes}注)",
+            'bets': sel_a + sel_b,
+            'groups': {mid_a: sel_a, mid_b: sel_b},
+            'cost': cost, 'notes': notes,
+            'ev_product': round(combo_ev, 3),
+            'odds_x': round(combo_odds, 1),
+            'ret': round(2 * combo_odds, 1),
+            'combo_value': round(best_value, 4),
+            'hit_a': round(hit_a, 3),
+            'hit_b': round(hit_b, 3),
+            'note': f"复式2串1 {notes}注 | EV={combo_ev:.2f} | 倍率={combo_odds:.1f}x"
+        }
+        plan_parts.append(part)
     
     if not plan_parts:
         return {'label': '⚠️ 高性价比方案', 'parts': [], 'total_cost': 0,
                 'note': '无法构建有效串关组合'}
-    
-    # 按组合价值分排序
-    plan_parts.sort(key=lambda x: -x.get('combo_value', 0))
     
     total_cost = sum(p['cost'] for p in plan_parts)
     
@@ -1285,7 +1261,7 @@ def _gen_smart_plan(scored):
         'label': label,
         'parts': plan_parts,
         'total_cost': total_cost,
-        'note': f"纯价值分析 | {len(plan_parts)}组/{total_cost}元 | 最高{max_odds:.0f}倍 | 均EV={avg_ev:.2f}"
+        'note': f"复式多选过关 | {len(plan_parts)}组/{total_cost}元 | 最高{max_odds:.0f}倍 | 均EV={avg_ev:.2f}"
     }
 
 def gen_plan(scored):
@@ -1382,9 +1358,9 @@ def print_plan(plan):
                     print(f"  │ {first['match']} 【复式{len(bets)}选】")
                     for b in bets:
                         print(f"  │   [{b['play']}]{b['pick']}@{b['odds']} P={b.get('prob',0):.1%} EV={b.get('ev',0):.2f}")
-                    # 该场总概率
-                    field_prob = sum(b.get('prob', 0) for b in bets)
-                    print(f"  │   → 该场命中概率:{field_prob:.1%}")
+                    # 该场总概率（取最大单选项概率，因为结果是互斥的）
+                    field_prob = max(b.get('prob', 0) for b in bets)
+                    print(f"  │   → 最高单项概率:{field_prob:.1%}")
             print(f"  │ 💰 {cost}元 | ~{part['odds_x']}x | 预估回报:{part['ret']}元")
         print(f"\n  📋 {label}合计:{p['total_cost']}元")
     
