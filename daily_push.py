@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""每日世界杯方案生成 + 邮件推送 v7.3
+"""每日世界杯方案生成 + 邮件推送 v7.4
 高性价比实战比分模型，每日推送
-v7.3: 比赛分类驱动 + 赛况汇总 + 回报区间
+v7.4: 全量赛果同步 + 开放型比赛强制入选
 """
 import sys, os, subprocess, smtplib
 from datetime import datetime
@@ -42,7 +42,7 @@ def build_email(all_outputs):
     today = datetime.now().strftime("%m月%d日")
     html.append(f'<div style="background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;text-align:center;padding:16px;border-radius:8px 8px 0 0;font-size:20px;font-weight:bold;">')
     html.append(f'⚽ 世界杯竞彩方案 · {today}')
-    html.append(f'<div style="font-size:12px;font-weight:normal;opacity:0.85;margin-top:4px;">v7.3 实战比分 · 分类驱动 · 总进球复式</div>')
+    html.append(f'<div style="font-size:12px;font-weight:normal;opacity:0.85;margin-top:4px;">v7.4 实战比分 · 分类驱动 · 总进球复式</div>')
     html.append('</div>')
     
     html.append('<div style="background:#fafafa;padding:12px 16px;border:1px solid #e0e0e0;border-top:none;">')
@@ -56,7 +56,7 @@ def build_email(all_outputs):
         in_summary = False
         in_plan = False
         for line in lines:
-            if '世界杯赛况汇总' in line:
+            if '世界杯全量赛果' in line or '世界杯赛况汇总' in line:
                 in_summary = True
                 summary_lines.append(line)
                 continue
@@ -81,12 +81,12 @@ def build_email(all_outputs):
         # 渲染赛况汇总卡片
         if summary_lines:
             html.append('<div style="background:#fff;border:1px solid #e8e8e8;border-radius:6px;padding:10px 14px;margin:6px 0;">')
-            html.append('<div style="font-weight:bold;color:#c0392b;font-size:14px;margin-bottom:6px;">🌍 世界杯赛况汇总</div>')
+            html.append('<div style="font-weight:bold;color:#c0392b;font-size:14px;margin-bottom:6px;">🌍 世界杯全量赛果</div>')
             for s_line in summary_lines:
                 s = s_line.strip()
                 if not s or s.startswith('==='): continue
                 esc_s = esc(s)
-                if '进球分布' in s or '胜平负分布' in s or '最近赛果' in s:
+                if '进球分布' in s or '胜平负分布' in s or '全部赛果' in s:
                     html.append(f'<div style="font-weight:bold;color:#555;font-size:12px;margin-top:6px;">{esc_s}</div>')
                 elif any(s.startswith(f'{g}球') for g in range(9)):
                     html.append(f'<div style="color:#888;font-size:11px;padding-left:8px;font-family:monospace;">{esc_s}</div>')
@@ -169,7 +169,7 @@ def build_email(all_outputs):
 
     html.append(f'<div style="text-align:center;color:#bbb;font-size:11px;padding:10px 0;border-top:1px solid #eee;margin-top:8px;">')
     html.append(f'生成时间：{datetime.now().strftime("%Y-%m-%d %H:%M")}<br>')
-    html.append('模型 v7.3 · 比赛分类驱动 · 总进球复式2串1 · 理性投注 仅供娱乐')
+    html.append('模型 v7.4 · 比赛分类驱动 · 总进球复式2串1 · 理性投注 仅供娱乐')
     html.append('</div>')
     html.append('</div>')
 
@@ -210,7 +210,7 @@ def main():
     html_body, is_skip = build_email(all_outputs)
 
     today = datetime.now().strftime("%m-%d")
-    subject = f"⚽ 世界杯竞彩方案 {today} | v7.3"
+    subject = f"⚽ 世界杯竞彩方案 {today} | v7.4"
 
     send_email(subject, html_body)
     print(f"✅ 已发送到 {SMTP_CONFIG['to']}")

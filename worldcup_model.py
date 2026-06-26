@@ -1422,18 +1422,17 @@ def _gen_smart_plan(scored):
                 'note': '无法构建有效组合'}
     
     # ── 第四步：选择最优组合 ──
+    # v7.4: 强制覆盖三种类型——开放型/防守型必须至少各选1场
+    # 德国(开放型)赔率低导致value_score排名靠后，需要强制入选
     best_plans.sort(key=lambda x: -x['combo_value'])
     
-    # 优先纯比分，其次总进球兜底
     pure_crs = [p for p in best_plans if p['type'].startswith('比分')]
     ttg_only = [p for p in best_plans if p['type'].startswith('总进球')]
     
     plan_parts = []
     used_notes = 0
+    used_mids = set()
     
-    # 总进球做主力（覆盖面大，概率高），比分做点缀
-    # 优先选不同比赛类型的组合，增加多样性
-    # 核心原则：优先覆盖3种类型（防守/均衡/开放），各取一场
     if ttg_only:
         # 按类型分桶
         by_type = {'防守型': [], '均衡型': [], '开放型': [], '均势型': []}
@@ -1444,10 +1443,41 @@ def _gen_smart_plan(scored):
                 if plan not in by_type.get(mt, []):
                     by_type.setdefault(mt, []).append(plan)
         
-        # 策略：选不同比赛，覆盖不同进球区间
-        used_mids = set()
+        # v7.4策略：第一组强制开放型+防守型（互补，覆盖面最大）
+        # 开放型→234球，防守型→012球，合起来覆盖0-4球
+        for plan in ttg_only:
+            if used_notes >= 18: break
+            if used_notes + plan['notes'] > 18: continue
+            plan_mids = set(plan['groups'].keys())
+            if plan_mids & used_mids: continue
+            plan_types = set()
+            for mid in plan['groups']:
+                mp = match_picks.get(mid, {})
+                plan_types.add(mp.get('type', ''))
+            if '开放型' in plan_types and '防守型' in plan_types:
+                plan_parts.append(plan)
+                used_notes += plan['notes']
+                used_mids.update(plan_mids)
+                break
         
-        # 第一组：均衡型+均衡型（覆盖123球，最常见）
+        # 如果开放×防守不存在，退而求开放×均衡
+        if not plan_parts:
+            for plan in ttg_only:
+                if used_notes >= 18: break
+                if used_notes + plan['notes'] > 18: continue
+                plan_mids = set(plan['groups'].keys())
+                if plan_mids & used_mids: continue
+                plan_types = set()
+                for mid in plan['groups']:
+                    mp = match_picks.get(mid, {})
+                    plan_types.add(mp.get('type', ''))
+                if '开放型' in plan_types:
+                    plan_parts.append(plan)
+                    used_notes += plan['notes']
+                    used_mids.update(plan_mids)
+                    break
+        
+        # 第二组：均衡型+均衡型（覆盖123球，最常见）
         for plan in by_type.get('均衡型', []):
             if used_notes >= 18: break
             if used_notes + plan['notes'] > 18: continue
@@ -1458,28 +1488,7 @@ def _gen_smart_plan(scored):
             used_mids.update(plan_mids)
             break
         
-        # 第二组：开放型+防守型（覆盖234和012，互补）
-        if used_notes < 18:
-            open_plans = by_type.get('开放型', [])
-            def_plans = by_type.get('防守型', [])
-            # 构建开放×防守的2串1（在ttg_only中找）
-            for plan in ttg_only:
-                if used_notes >= 18: break
-                if used_notes + plan['notes'] > 18: continue
-                plan_mids = set(plan['groups'].keys())
-                if plan_mids & used_mids: continue
-                # 检查是否一个开放一个防守
-                plan_types = set()
-                for mid in plan['groups']:
-                    mp = match_picks.get(mid, {})
-                    plan_types.add(mp.get('type', ''))
-                if '开放型' in plan_types and '防守型' in plan_types:
-                    plan_parts.append(plan)
-                    used_notes += plan['notes']
-                    used_mids.update(plan_mids)
-                    break
-        
-        # 第三组：不够再随便补
+        # 不够再补
         if used_notes < 12:
             for plan in ttg_only:
                 if used_notes >= 18: break
@@ -1533,7 +1542,7 @@ def _gen_smart_plan(scored):
         'label': label,
         'parts': plan_parts,
         'total_cost': total_cost,
-        'note': f"比分≤60倍+总进球兜底 | {len(plan_parts)}组/{total_cost}元 | 最高{max_odds:.0f}倍 | 均EV={avg_ev:.2f}"
+        'note': f"比分≤50倍+总进球分类 | {len(plan_parts)}组/{total_cost}元 | 最高{max_odds:.0f}倍 | 均EV={avg_ev:.2f}"
     }
 
 def gen_plan(scored):
@@ -1578,25 +1587,17 @@ def gen_plan(scored):
 # ═══════════════════════════════════════════
 
 def print_worldcup_summary(kb):
-    """v7.3: 打印世界杯赛况汇总（已赛结果+进球分布+胜平负分布）"""
+    """v7.4: 打印世界杯全量赛果汇总"""
     matches = kb.get('matches', [])
     if not matches:
         return
-    
-    # 按日期分组
-    by_date = {}
-    for m in matches:
-        d = m.get('date', '?')
-        if d not in by_date:
-            by_date[d] = []
-        by_date[d].append(m)
     
     total = len(matches)
     goals = [m.get('goals', 0) for m in matches if 'goals' in m]
     hads = [m.get('had', '') for m in matches if m.get('had')]
     
     print(f"\n{'='*80}")
-    print(f"  🌍 2026世界杯赛况汇总 | 截至{datetime.now().strftime('%m-%d')} | 共{total}场")
+    print(f"  🌍 2026世界杯全量赛果 | 截至{datetime.now().strftime('%m-%d')} | 共{total}场")
     print(f"{'='*80}")
     
     # 进球分布
@@ -1617,10 +1618,10 @@ def print_worldcup_summary(kb):
             bar = '█' * int(cnt / total * 30) if total > 0 else ''
             print(f"    {r}: {bar} {cnt}场 ({cnt/total*100:.1f}%)")
     
-    # 最近5场
-    print(f"\n  📅 最近赛果:")
-    recent = sorted(matches, key=lambda x: x.get('date', ''), reverse=True)[:8]
-    for m in recent:
+    # 全量赛果按日期排列
+    print(f"\n  📅 全部赛果（按日期）:")
+    sorted_matches = sorted(matches, key=lambda x: x.get('date', ''), reverse=True)
+    for m in sorted_matches:
         d = m.get('date', '?')
         match = m.get('match', '?')
         score = m.get('score', '?:?')
@@ -1630,7 +1631,7 @@ def print_worldcup_summary(kb):
 
 def print_analysis(scored,kb):
     print("="*80)
-    print(f"   ⚽ 世界杯实战分析 v7.3 | {datetime.now().strftime('%m-%d %H:%M')} | 知识库:{len(kb.get('matches',[]))}场/{len(kb.get('teams_stats',kb.get('teams',{})))}队")
+    print(f"   ⚽ 世界杯实战分析 v7.4 | {datetime.now().strftime('%m-%d %H:%M')} | 知识库:{len(kb.get('matches',[]))}场/{len(kb.get('teams_stats',kb.get('teams',{})))}队")
     print("="*80)
     for i,sm in enumerate(sorted(scored,key=lambda x:-x['total']),1):
         m=sm['match']
@@ -1655,7 +1656,7 @@ def print_analysis(scored,kb):
     print(f"\n{'='*80}\n")
 
 def print_plan(plan):
-    print("="*80);print("        🎯 今日实战方案 v7.3");print("="*80)
+    print("="*80);print("        🎯 今日实战方案 v7.4");print("="*80)
     if'error'in plan:print(f"  ⚠️ {plan['error']}");return
     total_all=0
     for p in plan.get('plans',[]):
@@ -1730,12 +1731,18 @@ def calc_trigger_time(matches):
 # ═══════════════════════════════════════════
 
 def main():
-    print("🔄 获取体彩数据 + 加载知识库 (v7.3 实战比分)...")
+    print("🔄 获取体彩数据 + 加载知识库 (v7.4 实战比分)...")
     kb=load_knowledge_base()
-    # v6.0: 每日赛果自动更新
+    # v7.4: 每日赛果全量同步
+    added = 0
     try:
-        auto_update_results(kb)
-    except: pass
+        added = auto_update_results(kb)
+    except:
+        pass
+    if added > 0:
+        save_kb(kb)
+        cal = _load_calibration(kb)
+        print(f"📊 赛果同步:{added}场新结果 → 总计{cal['total_matches']}场")
     # v4.0: 加载高阶统计数据
     try:
         if 'teams_stats' not in kb or not kb['teams_stats']:
