@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""每日世界杯方案生成 + 邮件推送 v7.4
+"""每日世界杯方案生成 + 邮件推送 v7.5
 高性价比实战比分模型，每日推送
-v7.4: 全量赛果同步 + 开放型比赛强制入选
+v7.5: 赛果中文化 + 按日期分组展示 + 修复英文脏数据
 """
 import sys, os, subprocess, smtplib
 from datetime import datetime
@@ -56,7 +56,8 @@ def build_email(all_outputs):
         in_summary = False
         in_plan = False
         for line in lines:
-            if '世界杯全量赛果' in line or '世界杯赛况汇总' in line:
+            # v7.5新格式：赛果汇总起止标记
+            if '世界杯赛果汇总' in line or '世界杯全量赛果' in line:
                 in_summary = True
                 summary_lines.append(line)
                 continue
@@ -66,10 +67,13 @@ def build_email(all_outputs):
                     in_plan = True
                     plan_lines.append(line)
                     continue
-                if line.strip().startswith('===') and len(summary_lines) > 1:
-                    in_summary = False
-                    continue
+                # 新格式：空行+===结尾表示summary结束
+                if line.strip() == '' and len(summary_lines) > 5:
+                    pass  # 允许空行
                 summary_lines.append(line)
+                # 检测summary结束（共N场完赛 + 分割线 + 空行）
+                if '共' in line and '完赛' in line:
+                    in_summary = False  # 下一段就是plan
                 continue
             if '今日实战方案' in line:
                 in_plan = True
@@ -78,22 +82,42 @@ def build_email(all_outputs):
                 if '理性投注' in line:
                     break
 
-        # 渲染赛况汇总卡片
+        # 渲染赛况汇总卡片（v7.5新格式：按日期分组，中文队名）
         if summary_lines:
             html.append('<div style="background:#fff;border:1px solid #e8e8e8;border-radius:6px;padding:10px 14px;margin:6px 0;">')
-            html.append('<div style="font-weight:bold;color:#c0392b;font-size:14px;margin-bottom:6px;">🌍 世界杯全量赛果</div>')
+            html.append('<div style="font-weight:bold;color:#c0392b;font-size:14px;margin-bottom:6px;">🌍 世界杯赛果汇总</div>')
+            in_day = False
             for s_line in summary_lines:
                 s = s_line.strip()
-                if not s or s.startswith('==='): continue
+                if not s or s.startswith('===') or s.startswith('───'): continue
                 esc_s = esc(s)
-                if '进球分布' in s or '胜平负分布' in s or '全部赛果' in s:
-                    html.append(f'<div style="font-weight:bold;color:#555;font-size:12px;margin-top:6px;">{esc_s}</div>')
-                elif any(s.startswith(f'{g}球') for g in range(9)):
-                    html.append(f'<div style="color:#888;font-size:11px;padding-left:8px;font-family:monospace;">{esc_s}</div>')
-                elif any(s.startswith(r) for r in ['主胜', '平', '客胜']):
-                    html.append(f'<div style="color:#888;font-size:11px;padding-left:8px;font-family:monospace;">{esc_s}</div>')
-                elif '2026-' in s:
-                    html.append(f'<div style="color:#999;font-size:10px;padding-left:8px;">{esc_s}</div>')
+                
+                # 统计行：进球分布 / 胜负分布
+                if '进球分布' in s:
+                    html.append(f'<div style="color:#555;font-size:12px;margin:4px 0;">{esc_s}</div>')
+                elif '胜负分布' in s:
+                    html.append(f'<div style="color:#555;font-size:12px;margin-bottom:6px;">{esc_s}</div>')
+                # 日期标题
+                elif s.startswith('📆'):
+                    if in_day:
+                        html.append('</div>')
+                    html.append(f'<div style="background:#f8f8f8;border-radius:4px;padding:4px 8px;margin:6px 0 2px;">')
+                    html.append(f'<div style="font-weight:bold;color:#555;font-size:12px;">{esc_s}</div>')
+                    in_day = True
+                # 比赛结果行（🔵🟡🔴开头）
+                elif s.startswith('🔵') or s.startswith('🟡') or s.startswith('🔴') or s.startswith('⚪'):
+                    html.append(f'<div style="font-size:11px;padding:1px 0 1px 4px;font-family:monospace;color:#333;">{esc_s}</div>')
+                # 标题行（全部赛果）
+                elif '全部赛果' in s:
+                    html.append(f'<div style="font-weight:bold;color:#888;font-size:11px;margin:6px 0 4px;">{esc_s}</div>')
+                # 合计行
+                elif '共' in s and '完赛' in s:
+                    if in_day:
+                        html.append('</div>')
+                        in_day = False
+                    html.append(f'<div style="color:#888;font-size:11px;text-align:right;margin-top:4px;">{esc_s}</div>')
+            if in_day:
+                html.append('</div>')
             html.append('</div>')
 
         if not plan_lines:
@@ -169,7 +193,7 @@ def build_email(all_outputs):
 
     html.append(f'<div style="text-align:center;color:#bbb;font-size:11px;padding:10px 0;border-top:1px solid #eee;margin-top:8px;">')
     html.append(f'生成时间：{datetime.now().strftime("%Y-%m-%d %H:%M")}<br>')
-    html.append('模型 v7.4 · 比赛分类驱动 · 总进球复式2串1 · 理性投注 仅供娱乐')
+    html.append('模型 v7.5 · 比赛分类驱动 · 总进球复式2串1 · 理性投注 仅供娱乐')
     html.append('</div>')
     html.append('</div>')
 
@@ -210,7 +234,7 @@ def main():
     html_body, is_skip = build_email(all_outputs)
 
     today = datetime.now().strftime("%m-%d")
-    subject = f"⚽ 世界杯竞彩方案 {today} | v7.4"
+    subject = f"⚽ 世界杯竞彩方案 {today} | v7.5"
 
     send_email(subject, html_body)
     print(f"✅ 已发送到 {SMTP_CONFIG['to']}")

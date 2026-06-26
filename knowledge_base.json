@@ -1,664 +1,492 @@
 {
   "matches": [
     {
-      "date": "2026-06-12",
-      "match": "卡塔尔vs瑞士",
+      "date": "2026-06-13",
+      "match": "澳大利亚 vs 土耳其",
+      "score": "2:0",
+      "goals": 2,
+      "had": "主胜",
+      "stage": "D组"
+    },
+    {
+      "date": "2026-06-13",
+      "match": "卡塔尔 vs 瑞士",
       "score": "1:1",
       "goals": 2,
-      "had": "平"
+      "had": "平",
+      "stage": "B组"
     },
     {
-      "date": "2026-06-12",
-      "match": "巴西vs摩洛哥",
-      "score": "1:1",
+      "date": "2026-06-19",
+      "match": "美国 vs 澳大利亚",
+      "score": "2:0",
       "goals": 2,
-      "had": "平"
+      "had": "主胜",
+      "stage": "D组"
     },
     {
-      "date": "2026-06-12",
-      "match": "海地vs苏格兰",
-      "score": "0:1",
-      "goals": 1,
-      "had": "客胜"
+      "date": "2026-06-20",
+      "match": "德国 vs 科特迪瓦",
+      "score": "2:1",
+      "goals": 3,
+      "had": "主胜",
+      "stage": "E组"
     },
     {
-      "date": "2026-06-13",
-      "match": "德国vs库拉索",
-      "score": "7:1",
-      "goals": 8,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-13",
-      "match": "荷兰vs日本",
-      "score": "2:2",
-      "goals": 4,
-      "had": "平"
-    },
-    {
-      "date": "2026-06-13",
-      "match": "科特迪瓦vs厄瓜多尔",
-      "score": "1:0",
-      "goals": 1,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-13",
-      "match": "瑞典vs突尼斯",
+      "date": "2026-06-20",
+      "match": "荷兰 vs 瑞典",
       "score": "5:1",
       "goals": 6,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "F组"
     },
     {
-      "date": "2026-06-14",
-      "match": "西班牙vs佛得角",
+      "date": "2026-06-22",
+      "match": "法国 vs 伊拉克",
+      "score": "3:0",
+      "goals": 3,
+      "had": "主胜",
+      "stage": "I组"
+    },
+    {
+      "date": "2026-06-22",
+      "match": "挪威 vs 塞内加尔",
+      "score": "3:2",
+      "goals": 5,
+      "had": "主胜",
+      "stage": "I组"
+    },
+    {
+      "date": "2026-06-25",
+      "match": "日本 vs 瑞典",
+      "score": "1:1",
+      "goals": 2,
+      "had": "平",
+      "stage": "F组"
+    },
+    {
+      "date": "2026-06-13",
+      "match": "海地 vs 苏格兰",
+      "score": "0:1",
+      "goals": 1,
+      "had": "客胜",
+      "stage": "C组"
+    },
+    {
+      "date": "2026-06-17",
+      "match": "英格兰 vs 克罗地亚",
+      "score": "4:2",
+      "goals": 6,
+      "had": "主胜",
+      "stage": "L组"
+    },
+    {
+      "date": "2026-06-21",
+      "match": "西班牙 vs 沙特",
+      "score": "4:0",
+      "goals": 4,
+      "had": "主胜",
+      "stage": "H组"
+    },
+    {
+      "date": "2026-06-22",
+      "match": "约旦 vs 阿尔及利亚",
+      "score": "1:2",
+      "goals": 3,
+      "had": "客胜",
+      "stage": "J组"
+    },
+    {
+      "date": "2026-06-23",
+      "match": "葡萄牙 vs 乌兹别克",
+      "score": "5:0",
+      "goals": 5,
+      "had": "主胜",
+      "stage": "K组"
+    },
+    {
+      "date": "2026-06-23",
+      "match": "巴拿马 vs 克罗地亚",
+      "score": "0:1",
+      "goals": 1,
+      "had": "客胜",
+      "stage": "L组"
+    },
+    {
+      "date": "2026-06-24",
+      "match": "捷克 vs 墨西哥",
+      "score": "0:3",
+      "goals": 3,
+      "had": "客胜",
+      "stage": "A组"
+    },
+    {
+      "date": "2026-06-25",
+      "match": "突尼斯 vs 荷兰",
+      "score": "1:3",
+      "goals": 4,
+      "had": "客胜",
+      "stage": "F组"
+    },
+    {
+      "date": "2026-06-11",
+      "match": "韩国 vs 捷克",
+      "score": "2:1",
+      "goals": 3,
+      "had": "主胜",
+      "stage": "A组"
+    },
+    {
+      "date": "2026-06-12",
+      "match": "美国 vs 巴拉圭",
+      "score": "4:1",
+      "goals": 5,
+      "had": "主胜",
+      "stage": "D组"
+    },
+    {
+      "date": "2026-06-16",
+      "match": "法国 vs 塞内加尔",
+      "score": "3:1",
+      "goals": 4,
+      "had": "主胜",
+      "stage": "I组"
+    },
+    {
+      "date": "2026-06-16",
+      "match": "伊拉克 vs 挪威",
+      "score": "1:4",
+      "goals": 5,
+      "had": "客胜",
+      "stage": "I组"
+    },
+    {
+      "date": "2026-06-17",
+      "match": "葡萄牙 vs 刚果金",
+      "score": "1:1",
+      "goals": 2,
+      "had": "平",
+      "stage": "K组"
+    },
+    {
+      "date": "2026-06-21",
+      "match": "比利时 vs 伊朗",
       "score": "0:0",
       "goals": 0,
       "had": "平",
-      "note": "超级冷门"
+      "stage": "G组"
     },
     {
-      "date": "2026-06-14",
-      "match": "比利时vs埃及",
-      "score": "1:1",
-      "goals": 2,
-      "had": "平"
-    },
-    {
-      "date": "2026-06-14",
-      "match": "沙特vs乌拉圭",
-      "score": "1:1",
-      "goals": 2,
-      "had": "平"
-    },
-    {
-      "date": "2026-06-14",
-      "match": "伊朗vs新西兰",
-      "score": "2:2",
-      "goals": 4,
-      "had": "平"
-    },
-    {
-      "date": "2026-06-19",
-      "match": "美国vs澳大利亚",
-      "score": "2:0",
-      "goals": 2,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-19",
-      "match": "苏格兰vs摩洛哥",
-      "score": "0:1",
-      "goals": 1,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-19",
-      "match": "巴西vs海地",
-      "score": "3:0",
-      "goals": 3,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-19",
-      "match": "土耳其vs巴拉圭",
-      "score": "0:1",
-      "goals": 1,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-20",
-      "match": "荷兰vs瑞典",
-      "score": "5:1",
-      "goals": 6,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-20",
-      "match": "德国vs科特迪瓦",
-      "score": "2:1",
-      "goals": 3,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-20",
-      "match": "厄瓜多尔vs库拉索",
-      "score": "0:0",
-      "goals": 0,
-      "had": "平"
-    },
-    {
-      "date": "2026-06-20",
-      "match": "突尼斯vs日本",
-      "score": "0:4",
-      "goals": 4,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-15",
-      "match": "阿根廷vs奥地利",
-      "score": "3:0",
-      "goals": 3,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-15",
-      "match": "法国vs伊拉克",
-      "score": "4:1",
-      "goals": 5,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-15",
-      "match": "挪威vs塞内加尔",
-      "score": "3:1",
-      "goals": 4,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-15",
-      "match": "约旦vs阿尔及利亚",
-      "score": "1:2",
-      "goals": 3,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-16",
-      "match": "葡萄牙vs乌兹别克",
-      "score": "0:0",
-      "goals": 0,
-      "had": "平"
-    },
-    {
-      "date": "2026-06-16",
-      "match": "英格兰vs加纳",
-      "score": "2:0",
-      "goals": 2,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-16",
-      "match": "巴拿马vs克罗地亚",
-      "score": "0:1",
-      "goals": 1,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-16",
-      "match": "哥伦比亚vs刚果金",
-      "score": "2:1",
-      "goals": 3,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-17",
-      "match": "捷克vs南非",
-      "score": "1:0",
-      "goals": 1,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-17",
-      "match": "瑞士vs波黑",
-      "score": "2:1",
-      "goals": 3,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-17",
-      "match": "加拿大vs卡塔尔",
-      "score": "1:0",
-      "goals": 1,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-17",
-      "match": "墨西哥vs韩国",
-      "score": "1:2",
-      "goals": 3,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-18",
-      "match": "美国vs澳大利亚",
-      "score": "2:0",
-      "goals": 2,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-18",
-      "match": "苏格兰vs摩洛哥",
-      "score": "0:1",
-      "goals": 1,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-18",
-      "match": "巴西vs海地",
-      "score": "3:0",
-      "goals": 3,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-18",
-      "match": "土耳其vs巴拉圭",
-      "score": "0:1",
-      "goals": 1,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-19",
-      "match": "荷兰vs瑞典",
-      "score": "5:1",
-      "goals": 6,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-19",
-      "match": "德国vs科特迪瓦",
-      "score": "2:1",
-      "goals": 3,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-19",
-      "match": "厄瓜多尔vs库拉索",
-      "score": "0:0",
-      "goals": 0,
-      "had": "平"
-    },
-    {
-      "date": "2026-06-19",
-      "match": "突尼斯vs日本",
-      "score": "0:4",
-      "goals": 4,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "AustraliavsTurkey",
-      "score": "2:0",
-      "goals": 2,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "QatarvsSwitzerland",
-      "score": "1:1",
-      "goals": 2,
-      "had": "平"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "United StatesvsAustralia",
-      "score": "2:0",
-      "goals": 2,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "GermanyvsIvory Coast",
-      "score": "2:1",
-      "goals": 3,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "NetherlandsvsSweden",
-      "score": "5:1",
-      "goals": 6,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "FrancevsIraq",
-      "score": "3:0",
-      "goals": 3,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "NorwayvsSenegal",
-      "score": "3:2",
-      "goals": 5,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "HaitivsScotland",
-      "score": "0:1",
-      "goals": 1,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "EnglandvsCroatia",
+      "date": "2026-06-24",
+      "match": "摩洛哥 vs 海地",
       "score": "4:2",
       "goals": 6,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "C组"
     },
     {
-      "date": "2026-06-25",
-      "match": "SpainvsSaudi Arabia",
-      "score": "4:0",
-      "goals": 4,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "JordanvsAlgeria",
-      "score": "1:2",
-      "goals": 3,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "PortugalvsUzbekistan",
-      "score": "5:0",
-      "goals": 5,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "PanamavsCroatia",
-      "score": "0:1",
-      "goals": 1,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "Czech RepublicvsMexico",
-      "score": "0:3",
-      "goals": 3,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "South KoreavsCzech Republic",
-      "score": "2:1",
-      "goals": 3,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "United StatesvsParaguay",
-      "score": "4:1",
-      "goals": 5,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "FrancevsSenegal",
-      "score": "3:1",
-      "goals": 4,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "IraqvsNorway",
-      "score": "1:4",
-      "goals": 5,
-      "had": "客胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "PortugalvsDemocratic Republic of the Congo",
-      "score": "1:1",
-      "goals": 2,
-      "had": "平"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "BelgiumvsIran",
-      "score": "0:0",
-      "goals": 0,
-      "had": "平"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "MoroccovsHaiti",
-      "score": "4:2",
-      "goals": 6,
-      "had": "主胜"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "South AfricavsSouth Korea",
+      "date": "2026-06-24",
+      "match": "南非 vs 韩国",
       "score": "1:0",
       "goals": 1,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "A组"
     },
     {
-      "date": "2026-06-25",
-      "match": "Ivory CoastvsEcuador",
+      "date": "2026-06-14",
+      "match": "科特迪瓦 vs 厄瓜多尔",
       "score": "1:0",
       "goals": 1,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "E组"
     },
     {
-      "date": "2026-06-25",
-      "match": "GermanyvsCuraçao",
+      "date": "2026-06-14",
+      "match": "德国 vs 库拉索",
       "score": "7:1",
       "goals": 8,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "E组"
     },
     {
-      "date": "2026-06-25",
-      "match": "SwedenvsTunisia",
+      "date": "2026-06-14",
+      "match": "瑞典 vs 突尼斯",
       "score": "5:1",
       "goals": 6,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "F组"
     },
     {
-      "date": "2026-06-25",
-      "match": "MexicovsSouth Korea",
+      "date": "2026-06-18",
+      "match": "墨西哥 vs 韩国",
       "score": "1:0",
       "goals": 1,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "A组"
     },
     {
-      "date": "2026-06-25",
-      "match": "CanadavsQatar",
+      "date": "2026-06-18",
+      "match": "加拿大 vs 卡塔尔",
       "score": "6:0",
       "goals": 6,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "B组"
     },
     {
-      "date": "2026-06-25",
-      "match": "ScotlandvsMorocco",
+      "date": "2026-06-19",
+      "match": "苏格兰 vs 摩洛哥",
       "score": "0:1",
       "goals": 1,
-      "had": "客胜"
+      "had": "客胜",
+      "stage": "C组"
     },
     {
-      "date": "2026-06-25",
-      "match": "TurkeyvsParaguay",
+      "date": "2026-06-19",
+      "match": "土耳其 vs 巴拉圭",
       "score": "0:1",
       "goals": 1,
-      "had": "客胜"
+      "had": "客胜",
+      "stage": "D组"
     },
     {
-      "date": "2026-06-25",
-      "match": "ArgentinavsAustria",
+      "date": "2026-06-22",
+      "match": "阿根廷 vs 奥地利",
       "score": "2:0",
       "goals": 2,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "J组"
     },
     {
-      "date": "2026-06-25",
-      "match": "ScotlandvsBrazil",
+      "date": "2026-06-24",
+      "match": "苏格兰 vs 巴西",
       "score": "0:3",
       "goals": 3,
-      "had": "客胜"
+      "had": "客胜",
+      "stage": "C组"
     },
     {
-      "date": "2026-06-25",
-      "match": "Bosnia and HerzegovinavsQatar",
+      "date": "2026-06-24",
+      "match": "波黑 vs 卡塔尔",
       "score": "3:1",
       "goals": 4,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "B组"
     },
     {
       "date": "2026-06-25",
-      "match": "MexicovsSouth Africa",
+      "match": "土耳其 vs 美国",
+      "score": "3:2",
+      "goals": 5,
+      "had": "主胜",
+      "stage": "D组"
+    },
+    {
+      "date": "2026-06-11",
+      "match": "墨西哥 vs 南非",
       "score": "2:0",
       "goals": 2,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "A组"
     },
     {
-      "date": "2026-06-25",
-      "match": "BrazilvsMorocco",
+      "date": "2026-06-13",
+      "match": "巴西 vs 摩洛哥",
       "score": "1:1",
       "goals": 2,
-      "had": "平"
+      "had": "平",
+      "stage": "C组"
     },
     {
-      "date": "2026-06-25",
-      "match": "NetherlandsvsJapan",
+      "date": "2026-06-14",
+      "match": "荷兰 vs 日本",
       "score": "2:2",
       "goals": 4,
-      "had": "平"
+      "had": "平",
+      "stage": "F组"
     },
     {
-      "date": "2026-06-25",
-      "match": "SwitzerlandvsBosnia and Herzegovina",
+      "date": "2026-06-18",
+      "match": "瑞士 vs 波黑",
       "score": "4:1",
       "goals": 5,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "B组"
     },
     {
-      "date": "2026-06-25",
-      "match": "BrazilvsHaiti",
+      "date": "2026-06-19",
+      "match": "巴西 vs 海地",
       "score": "3:0",
       "goals": 3,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "C组"
     },
     {
-      "date": "2026-06-25",
-      "match": "TunisiavsJapan",
+      "date": "2026-06-20",
+      "match": "突尼斯 vs 日本",
       "score": "0:4",
       "goals": 4,
-      "had": "客胜"
+      "had": "客胜",
+      "stage": "F组"
     },
     {
-      "date": "2026-06-25",
-      "match": "New ZealandvsEgypt",
+      "date": "2026-06-21",
+      "match": "新西兰 vs 埃及",
       "score": "1:3",
       "goals": 4,
-      "had": "客胜"
+      "had": "客胜",
+      "stage": "G组"
     },
     {
-      "date": "2026-06-25",
-      "match": "UruguayvsCape Verde",
+      "date": "2026-06-21",
+      "match": "乌拉圭 vs 佛得角",
       "score": "2:2",
       "goals": 4,
-      "had": "平"
+      "had": "平",
+      "stage": "H组"
     },
     {
-      "date": "2026-06-25",
-      "match": "ColombiavsDemocratic Republic of the Congo",
+      "date": "2026-06-23",
+      "match": "哥伦比亚 vs 刚果金",
       "score": "1:0",
       "goals": 1,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "K组"
     },
     {
-      "date": "2026-06-25",
-      "match": "SpainvsCape Verde",
+      "date": "2026-06-15",
+      "match": "西班牙 vs 佛得角",
       "score": "0:0",
       "goals": 0,
-      "had": "平"
+      "had": "平",
+      "stage": "H组"
     },
     {
-      "date": "2026-06-25",
-      "match": "Saudi ArabiavsUruguay",
+      "date": "2026-06-15",
+      "match": "沙特 vs 乌拉圭",
       "score": "1:1",
       "goals": 2,
-      "had": "平"
+      "had": "平",
+      "stage": "H组"
     },
     {
-      "date": "2026-06-25",
-      "match": "AustriavsJordan",
+      "date": "2026-06-16",
+      "match": "奥地利 vs 约旦",
       "score": "3:1",
       "goals": 4,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "J组"
     },
     {
-      "date": "2026-06-25",
-      "match": "UzbekistanvsColombia",
+      "date": "2026-06-17",
+      "match": "乌兹别克 vs 哥伦比亚",
       "score": "1:3",
       "goals": 4,
-      "had": "客胜"
+      "had": "客胜",
+      "stage": "K组"
     },
     {
-      "date": "2026-06-25",
-      "match": "CanadavsBosnia and Herzegovina",
+      "date": "2026-06-12",
+      "match": "加拿大 vs 波黑",
       "score": "1:1",
       "goals": 2,
-      "had": "平"
+      "had": "平",
+      "stage": "B组"
     },
     {
-      "date": "2026-06-25",
-      "match": "IranvsNew Zealand",
+      "date": "2026-06-15",
+      "match": "伊朗 vs 新西兰",
       "score": "2:2",
       "goals": 4,
-      "had": "平"
+      "had": "平",
+      "stage": "G组"
     },
     {
-      "date": "2026-06-25",
-      "match": "ArgentinavsAlgeria",
+      "date": "2026-06-16",
+      "match": "阿根廷 vs 阿尔及利亚",
       "score": "3:0",
       "goals": 3,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "J组"
     },
     {
-      "date": "2026-06-25",
-      "match": "GhanavsPanama",
+      "date": "2026-06-17",
+      "match": "加纳 vs 巴拿马",
       "score": "1:0",
       "goals": 1,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "L组"
     },
     {
-      "date": "2026-06-25",
-      "match": "Czech RepublicvsSouth Africa",
+      "date": "2026-06-18",
+      "match": "捷克 vs 南非",
       "score": "1:1",
       "goals": 2,
-      "had": "平"
+      "had": "平",
+      "stage": "A组"
     },
     {
-      "date": "2026-06-25",
-      "match": "EnglandvsGhana",
+      "date": "2026-06-23",
+      "match": "英格兰 vs 加纳",
       "score": "0:0",
       "goals": 0,
-      "had": "平"
+      "had": "平",
+      "stage": "L组"
     },
     {
       "date": "2026-06-25",
-      "match": "BelgiumvsEgypt",
-      "score": "1:1",
+      "match": "库拉索 vs 科特迪瓦",
+      "score": "0:2",
       "goals": 2,
-      "had": "平"
+      "had": "客胜",
+      "stage": "E组"
     },
     {
       "date": "2026-06-25",
-      "match": "EcuadorvsCuraçao",
-      "score": "0:0",
-      "goals": 0,
-      "had": "平"
-    },
-    {
-      "date": "2026-06-25",
-      "match": "SwitzerlandvsCanada",
+      "match": "厄瓜多尔 vs 德国",
       "score": "2:1",
       "goals": 3,
-      "had": "主胜"
+      "had": "主胜",
+      "stage": "E组"
+    },
+    {
+      "date": "2026-06-15",
+      "match": "比利时 vs 埃及",
+      "score": "1:1",
+      "goals": 2,
+      "had": "平",
+      "stage": "G组"
+    },
+    {
+      "date": "2026-06-20",
+      "match": "厄瓜多尔 vs 库拉索",
+      "score": "0:0",
+      "goals": 0,
+      "had": "平",
+      "stage": "E组"
+    },
+    {
+      "date": "2026-06-24",
+      "match": "瑞士 vs 加拿大",
+      "score": "2:1",
+      "goals": 3,
+      "had": "主胜",
+      "stage": "B组"
+    },
+    {
+      "date": "2026-06-25",
+      "match": "巴拉圭 vs 澳大利亚",
+      "score": "0:0",
+      "goals": 0,
+      "had": "平",
+      "stage": "D组"
     }
   ],
   "teams": {},
   "patterns": {
-    "super_draw": 24,
+    "super_draw": 16,
     "super_win": 19,
-    "total_cold": 45,
-    "updated": "2026-06-25"
+    "total_cold": 29,
+    "updated": "2026-06-26"
   },
   "odds_snapshots": {
     "2040182": {
@@ -1003,14 +831,14 @@
     },
     "2040291": [
       {
-        "had_h": 5.2,
-        "had_d": 4.95,
-        "had_a": 1.36,
-        "hhad_h": 2.65,
-        "hhad_d": 3.72,
-        "hhad_a": 2.07,
+        "had_h": 5.0,
+        "had_d": 4.9,
+        "had_a": 1.38,
+        "hhad_h": 2.56,
+        "hhad_d": 3.75,
+        "hhad_a": 2.12,
         "hhad_line": "+1",
-        "time": "06-25 19:31"
+        "time": "06-25 21:40"
       }
     ],
     "2040292": [
@@ -1018,11 +846,11 @@
         "had_h": null,
         "had_d": null,
         "had_a": null,
-        "hhad_h": 2.6,
-        "hhad_d": 3.78,
-        "hhad_a": 2.08,
+        "hhad_h": 2.66,
+        "hhad_d": 3.6,
+        "hhad_a": 2.1,
         "hhad_line": "+2",
-        "time": "06-25 19:31"
+        "time": "06-25 21:40"
       }
     ],
     "2040293": [
@@ -1030,59 +858,59 @@
         "had_h": null,
         "had_d": null,
         "had_a": null,
-        "hhad_h": 3.7,
-        "hhad_d": 4.35,
-        "hhad_a": 1.59,
+        "hhad_h": 3.55,
+        "hhad_d": 4.2,
+        "hhad_a": 1.64,
         "hhad_line": "+2",
-        "time": "06-25 19:31"
+        "time": "06-25 21:40"
       }
     ],
     "2040294": [
       {
-        "had_h": 1.61,
-        "had_d": 3.57,
-        "had_a": 4.4,
-        "hhad_h": 2.87,
-        "hhad_d": 3.57,
-        "hhad_a": 2.0,
+        "had_h": 1.62,
+        "had_d": 3.55,
+        "had_a": 4.35,
+        "hhad_h": 2.95,
+        "hhad_d": 3.5,
+        "hhad_a": 1.98,
         "hhad_line": "-1",
-        "time": "06-25 19:31"
+        "time": "06-25 21:40"
       }
     ],
     "2040295": [
       {
-        "had_h": 2.64,
-        "had_d": 2.15,
+        "had_h": 2.57,
+        "had_d": 2.2,
         "had_a": 3.5,
         "hhad_h": 6.2,
-        "hhad_d": 4.4,
-        "hhad_a": 1.35,
+        "hhad_d": 4.1,
+        "hhad_a": 1.38,
         "hhad_line": "-1",
-        "time": "06-25 19:31"
+        "time": "06-26 09:20"
       }
     ],
     "2040296": [
       {
-        "had_h": 3.65,
-        "had_d": 3.85,
-        "had_a": 1.68,
+        "had_h": 3.75,
+        "had_d": 3.9,
+        "had_a": 1.65,
         "hhad_h": 1.94,
         "hhad_d": 3.93,
         "hhad_a": 2.78,
         "hhad_line": "+1",
-        "time": "06-25 19:31"
+        "time": "06-26 09:20"
       }
     ],
     "2040297": [
       {
-        "had_h": 4.65,
-        "had_d": 3.9,
-        "had_a": 1.52,
-        "hhad_h": 2.18,
-        "hhad_d": 3.45,
-        "hhad_a": 2.63,
+        "had_h": 4.48,
+        "had_d": 4.33,
+        "had_a": 1.48,
+        "hhad_h": 2.3,
+        "hhad_d": 3.4,
+        "hhad_a": 2.5,
         "hhad_line": "+1",
-        "time": "06-25 19:31"
+        "time": "06-26 13:02"
       }
     ],
     "2040298": [
@@ -1090,11 +918,11 @@
         "had_h": null,
         "had_d": null,
         "had_a": null,
-        "hhad_h": 2.54,
-        "hhad_d": 3.96,
-        "hhad_a": 2.07,
+        "hhad_h": 2.47,
+        "hhad_d": 3.8,
+        "hhad_a": 2.17,
         "hhad_line": "-2",
-        "time": "06-25 19:31"
+        "time": "06-26 13:02"
       }
     ],
     "2040299": [
@@ -1106,31 +934,31 @@
         "hhad_d": 4.0,
         "hhad_a": 1.43,
         "hhad_line": "-1",
-        "time": "06-25 19:31"
+        "time": "06-26 13:02"
       }
     ],
     "2040300": [
       {
-        "had_h": 6.85,
-        "had_d": 4.22,
-        "had_a": 1.34,
-        "hhad_h": 2.65,
-        "hhad_d": 3.35,
-        "hhad_a": 2.21,
+        "had_h": 7.0,
+        "had_d": 3.9,
+        "had_a": 1.37,
+        "hhad_h": 2.57,
+        "hhad_d": 3.42,
+        "hhad_a": 2.23,
         "hhad_line": "+1",
-        "time": "06-25 19:31"
+        "time": "06-26 13:02"
       }
     ],
     "2040301": [
       {
-        "had_h": 2.32,
+        "had_h": 2.26,
         "had_d": 2.5,
-        "had_a": 3.35,
-        "hhad_h": 5.5,
+        "had_a": 3.5,
+        "hhad_h": 5.25,
         "hhad_d": 3.8,
-        "hhad_a": 1.46,
+        "hhad_a": 1.48,
         "hhad_line": "-1",
-        "time": "06-25 19:31"
+        "time": "06-26 13:02"
       }
     ],
     "2040302": [
@@ -1138,11 +966,11 @@
         "had_h": null,
         "had_d": null,
         "had_a": null,
-        "hhad_h": 2.3,
-        "hhad_d": 3.9,
-        "hhad_a": 2.28,
+        "hhad_h": 2.58,
+        "hhad_d": 3.95,
+        "hhad_a": 2.05,
         "hhad_line": "+2",
-        "time": "06-25 19:31"
+        "time": "06-26 13:02"
       }
     ],
     "2040303": [
@@ -1154,7 +982,7 @@
         "hhad_d": 3.35,
         "hhad_a": 2.1,
         "hhad_line": "-1",
-        "time": "06-25 19:31"
+        "time": "06-26 13:02"
       }
     ],
     "2040304": [
@@ -1162,11 +990,11 @@
         "had_h": null,
         "had_d": null,
         "had_a": null,
-        "hhad_h": 2.43,
+        "hhad_h": 2.48,
         "hhad_d": 3.9,
-        "hhad_a": 2.17,
+        "hhad_a": 2.13,
         "hhad_line": "+2",
-        "time": "06-25 19:31"
+        "time": "06-26 13:02"
       }
     ],
     "2040305": [
@@ -1178,7 +1006,7 @@
         "hhad_d": 3.5,
         "hhad_a": 3.3,
         "hhad_line": "+1",
-        "time": "06-25 19:31"
+        "time": "06-26 13:02"
       }
     ],
     "2040306": [
@@ -1190,7 +1018,7 @@
         "hhad_d": 3.5,
         "hhad_a": 1.9,
         "hhad_line": "-1",
-        "time": "06-25 19:31"
+        "time": "06-26 13:02"
       }
     ],
     "2040307": [
@@ -1202,7 +1030,7 @@
         "hhad_d": 4.35,
         "hhad_a": 7.35,
         "hhad_line": "+1",
-        "time": "06-25 19:31"
+        "time": "06-26 13:02"
       }
     ],
     "2040308": [
@@ -1214,189 +1042,177 @@
         "hhad_d": 3.85,
         "hhad_a": 2.39,
         "hhad_line": "+2",
-        "time": "06-25 19:31"
+        "time": "06-26 13:02"
       }
     ],
-    "2040291": {
-      "had_h": 5.2,
-      "had_d": 4.95,
-      "had_a": 1.36,
-      "hhad_h": 2.65,
-      "hhad_d": 3.72,
-      "hhad_a": 2.07,
-      "hhad_line": "+1",
-      "time": "06-25 19:31"
-    },
-    "2040292": {
-      "had_h": null,
-      "had_d": null,
-      "had_a": null,
-      "hhad_h": 2.6,
-      "hhad_d": 3.78,
-      "hhad_a": 2.08,
-      "hhad_line": "+2",
-      "time": "06-25 19:31"
-    },
-    "2040293": {
-      "had_h": null,
-      "had_d": null,
-      "had_a": null,
-      "hhad_h": 3.7,
-      "hhad_d": 4.35,
-      "hhad_a": 1.59,
-      "hhad_line": "+2",
-      "time": "06-25 19:31"
-    },
-    "2040294": {
-      "had_h": 1.61,
-      "had_d": 3.57,
-      "had_a": 4.4,
-      "hhad_h": 2.87,
-      "hhad_d": 3.57,
-      "hhad_a": 2.0,
-      "hhad_line": "-1",
-      "time": "06-25 19:31"
-    },
-    "2040295": {
-      "had_h": 2.64,
-      "had_d": 2.15,
-      "had_a": 3.5,
-      "hhad_h": 6.2,
-      "hhad_d": 4.4,
-      "hhad_a": 1.35,
-      "hhad_line": "-1",
-      "time": "06-25 19:31"
-    },
-    "2040296": {
-      "had_h": 3.65,
-      "had_d": 3.85,
-      "had_a": 1.68,
-      "hhad_h": 1.94,
-      "hhad_d": 3.93,
-      "hhad_a": 2.78,
-      "hhad_line": "+1",
-      "time": "06-25 19:31"
-    },
-    "2040297": {
-      "had_h": 4.65,
-      "had_d": 3.9,
-      "had_a": 1.52,
-      "hhad_h": 2.18,
-      "hhad_d": 3.45,
-      "hhad_a": 2.63,
-      "hhad_line": "+1",
-      "time": "06-25 19:31"
-    },
-    "2040298": {
-      "had_h": null,
-      "had_d": null,
-      "had_a": null,
-      "hhad_h": 2.54,
-      "hhad_d": 3.96,
-      "hhad_a": 2.07,
-      "hhad_line": "-2",
-      "time": "06-25 19:31"
-    },
-    "2040299": {
-      "had_h": 2.4,
-      "had_d": 3.05,
-      "had_a": 2.6,
-      "hhad_h": 5.55,
-      "hhad_d": 4.0,
-      "hhad_a": 1.43,
-      "hhad_line": "-1",
-      "time": "06-25 19:31"
-    },
-    "2040300": {
-      "had_h": 6.85,
-      "had_d": 4.22,
-      "had_a": 1.34,
-      "hhad_h": 2.65,
-      "hhad_d": 3.35,
-      "hhad_a": 2.21,
-      "hhad_line": "+1",
-      "time": "06-25 19:31"
-    },
-    "2040301": {
-      "had_h": 2.32,
-      "had_d": 2.5,
-      "had_a": 3.35,
-      "hhad_h": 5.5,
-      "hhad_d": 3.8,
-      "hhad_a": 1.46,
-      "hhad_line": "-1",
-      "time": "06-25 19:31"
-    },
-    "2040302": {
-      "had_h": null,
-      "had_d": null,
-      "had_a": null,
-      "hhad_h": 2.3,
-      "hhad_d": 3.9,
-      "hhad_a": 2.28,
-      "hhad_line": "+2",
-      "time": "06-25 19:31"
-    },
-    "2040303": {
-      "had_h": 1.57,
-      "had_d": 3.08,
-      "had_a": 5.95,
-      "hhad_h": 2.82,
-      "hhad_d": 3.35,
-      "hhad_a": 2.1,
-      "hhad_line": "-1",
-      "time": "06-25 19:31"
-    },
-    "2040304": {
-      "had_h": null,
-      "had_d": null,
-      "had_a": null,
-      "hhad_h": 2.43,
-      "hhad_d": 3.9,
-      "hhad_a": 2.17,
-      "hhad_line": "+2",
-      "time": "06-25 19:31"
-    },
-    "2040305": {
-      "had_h": 4.1,
-      "had_d": 3.25,
-      "had_a": 1.73,
-      "hhad_h": 1.85,
-      "hhad_d": 3.5,
-      "hhad_a": 3.3,
-      "hhad_line": "+1",
-      "time": "06-25 19:31"
-    },
-    "2040306": {
-      "had_h": 1.71,
-      "had_d": 3.75,
-      "had_a": 3.6,
-      "hhad_h": 3.15,
-      "hhad_d": 3.5,
-      "hhad_a": 1.9,
-      "hhad_line": "-1",
-      "time": "06-25 19:31"
-    },
-    "2040307": {
-      "had_h": 3.35,
-      "had_d": 2.11,
-      "had_a": 2.8,
-      "hhad_h": 1.31,
-      "hhad_d": 4.35,
-      "hhad_a": 7.35,
-      "hhad_line": "+1",
-      "time": "06-25 19:31"
-    },
-    "2040308": {
-      "had_h": null,
-      "had_d": null,
-      "had_a": null,
-      "hhad_h": 2.22,
-      "hhad_d": 3.85,
-      "hhad_a": 2.39,
-      "hhad_line": "+2",
-      "time": "06-25 19:31"
-    }
+    "2040327": [
+      {
+        "had_h": 4.7,
+        "had_d": 3.18,
+        "had_a": 1.66,
+        "hhad_h": 1.95,
+        "hhad_d": 3.3,
+        "hhad_a": 3.2,
+        "hhad_line": "+1",
+        "time": "06-26 13:02"
+      }
+    ],
+    "2040297": [
+      {
+        "had_h": 4.48,
+        "had_d": 4.33,
+        "had_a": 1.48,
+        "hhad_h": 2.3,
+        "hhad_d": 3.4,
+        "hhad_a": 2.5,
+        "hhad_line": "+1",
+        "time": "06-26 13:08"
+      }
+    ],
+    "2040298": [
+      {
+        "had_h": null,
+        "had_d": null,
+        "had_a": null,
+        "hhad_h": 2.47,
+        "hhad_d": 3.8,
+        "hhad_a": 2.17,
+        "hhad_line": "-2",
+        "time": "06-26 13:08"
+      }
+    ],
+    "2040299": [
+      {
+        "had_h": 2.4,
+        "had_d": 3.05,
+        "had_a": 2.6,
+        "hhad_h": 5.55,
+        "hhad_d": 4.0,
+        "hhad_a": 1.43,
+        "hhad_line": "-1",
+        "time": "06-26 13:08"
+      }
+    ],
+    "2040300": [
+      {
+        "had_h": 7.0,
+        "had_d": 3.9,
+        "had_a": 1.37,
+        "hhad_h": 2.57,
+        "hhad_d": 3.42,
+        "hhad_a": 2.23,
+        "hhad_line": "+1",
+        "time": "06-26 13:08"
+      }
+    ],
+    "2040301": [
+      {
+        "had_h": 2.26,
+        "had_d": 2.5,
+        "had_a": 3.5,
+        "hhad_h": 5.25,
+        "hhad_d": 3.8,
+        "hhad_a": 1.48,
+        "hhad_line": "-1",
+        "time": "06-26 13:08"
+      }
+    ],
+    "2040302": [
+      {
+        "had_h": null,
+        "had_d": null,
+        "had_a": null,
+        "hhad_h": 2.58,
+        "hhad_d": 3.95,
+        "hhad_a": 2.05,
+        "hhad_line": "+2",
+        "time": "06-26 13:08"
+      }
+    ],
+    "2040303": [
+      {
+        "had_h": 1.57,
+        "had_d": 3.08,
+        "had_a": 5.95,
+        "hhad_h": 2.82,
+        "hhad_d": 3.35,
+        "hhad_a": 2.1,
+        "hhad_line": "-1",
+        "time": "06-26 13:08"
+      }
+    ],
+    "2040304": [
+      {
+        "had_h": null,
+        "had_d": null,
+        "had_a": null,
+        "hhad_h": 2.48,
+        "hhad_d": 3.9,
+        "hhad_a": 2.13,
+        "hhad_line": "+2",
+        "time": "06-26 13:08"
+      }
+    ],
+    "2040305": [
+      {
+        "had_h": 4.1,
+        "had_d": 3.25,
+        "had_a": 1.73,
+        "hhad_h": 1.85,
+        "hhad_d": 3.5,
+        "hhad_a": 3.3,
+        "hhad_line": "+1",
+        "time": "06-26 13:08"
+      }
+    ],
+    "2040306": [
+      {
+        "had_h": 1.71,
+        "had_d": 3.75,
+        "had_a": 3.6,
+        "hhad_h": 3.15,
+        "hhad_d": 3.5,
+        "hhad_a": 1.9,
+        "hhad_line": "-1",
+        "time": "06-26 13:08"
+      }
+    ],
+    "2040307": [
+      {
+        "had_h": 3.35,
+        "had_d": 2.11,
+        "had_a": 2.8,
+        "hhad_h": 1.31,
+        "hhad_d": 4.35,
+        "hhad_a": 7.35,
+        "hhad_line": "+1",
+        "time": "06-26 13:08"
+      }
+    ],
+    "2040308": [
+      {
+        "had_h": null,
+        "had_d": null,
+        "had_a": null,
+        "hhad_h": 2.22,
+        "hhad_d": 3.85,
+        "hhad_a": 2.39,
+        "hhad_line": "+2",
+        "time": "06-26 13:08"
+      }
+    ],
+    "2040327": [
+      {
+        "had_h": 4.7,
+        "had_d": 3.18,
+        "had_a": 1.66,
+        "hhad_h": 1.95,
+        "hhad_d": 3.3,
+        "hhad_a": 3.2,
+        "hhad_line": "+1",
+        "time": "06-26 13:08"
+      }
+    ]
   },
   "teams_stats": {
     "德国": {

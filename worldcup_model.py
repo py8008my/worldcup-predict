@@ -183,27 +183,55 @@ def fetch_results():
 
 def fetch_results_v2():
     """
-    v6.0: 从 worldcup26.ir 免费API获取已赛比分
+    v7.5: 从 worldcup26.ir 免费API获取已赛比分
     ==============================================
     API: https://worldcup26.ir/get/games (无需Key)
-    返回JSON格式的所有104场比赛，包含 home_score/away_score/finished
+    - 使用真实比赛日期（local_date字段）
+    - 英文队名→中文映射
+    - 保存赛事阶段信息
     """
+    # 英文队名→中文映射表
+    EN2CN = {
+        'Germany': '德国', 'Brazil': '巴西', 'Argentina': '阿根廷',
+        'France': '法国', 'England': '英格兰', 'Spain': '西班牙',
+        'Portugal': '葡萄牙', 'Netherlands': '荷兰', 'Belgium': '比利时',
+        'Italy': 'Italy', 'Croatia': '克罗地亚', 'Japan': '日本',
+        'South Korea': '韩国', 'Mexico': '墨西哥', 'USA': '美国',
+        'United States': '美国', 'Canada': '加拿大', 'Morocco': '摩洛哥',
+        'Senegal': '塞内加尔', 'Australia': '澳大利亚', 'Sweden': '瑞典',
+        'Switzerland': '瑞士', 'Denmark': '丹麦', 'Poland': '波兰',
+        'Uruguay': '乌拉圭', 'Colombia': '哥伦比亚', 'Ecuador': '厄瓜多尔',
+        'Turkey': '土耳其', 'Norway': '挪威', 'Austria': '奥地利',
+        'Wales': '威尔士', 'Scotland': '苏格兰', 'Czech Republic': '捷克',
+        'Serbia': '塞尔维亚', 'Ukraine': '乌克兰', 'Hungary': '匈牙利',
+        'Qatar': '卡塔尔', 'Saudi Arabia': '沙特', 'Iran': '伊朗',
+        'South Africa': '南非', 'Nigeria': '尼日利亚', 'Ghana': '加纳',
+        'Cameroon': '喀麦隆', 'Senegal': '塞内加尔', 'Tunisia': '突尼斯',
+        'Algeria': '阿尔及利亚', 'Egypt': '埃及', 'Morocco': '摩洛哥',
+        'Ivory Coast': '科特迪瓦', "Côte d'Ivoire": '科特迪瓦',
+        'New Zealand': '新西兰', 'Paraguay': '巴拉圭', 'Bolivia': '玻利维亚',
+        'Peru': '秘鲁', 'Chile': '智利', 'Venezuela': '委内瑞拉',
+        'Panama': '巴拿马', 'Costa Rica': '哥斯达黎加', 'Honduras': '洪都拉斯',
+        'Jamaica': '牙买加', 'Haiti': '海地', 'Trinidad and Tobago': '特立尼达和多巴哥',
+        'Iraq': '伊拉克', 'Jordan': '约旦', 'Uzbekistan': '乌兹别克',
+        'Curaçao': '库拉索', 'Curacao': '库拉索', 'Cape Verde': '佛得角',
+        'Bosnia and Herzegovina': '波黑', 'Democratic Republic of the Congo': '刚果金',
+        'Congo DR': '刚果金', 'New Caledonia': '新喀里多尼亚',
+        'Venezuela': '委内瑞拉', 'Russia': '俄罗斯', 'Greece': '希腊',
+        'Romania': '罗马尼亚', 'Slovakia': '斯洛伐克', 'Slovenia': '斯洛文尼亚',
+    }
+    STAGE_CN = {
+        'A': 'A组', 'B': 'B组', 'C': 'C组', 'D': 'D组', 'E': 'E组', 'F': 'F组',
+        'G': 'G组', 'H': 'H组', 'I': 'I组', 'J': 'J组', 'K': 'K组', 'L': 'L组',
+        'R32': '32强赛', 'R16': '16强赛', 'QF': '8强赛', 'SF': '4强赛',
+        '3RD': '季军赛', 'FINAL': '决赛',
+    }
+
     results = []
     try:
-        # 获取比赛数据
         url_games = "https://worldcup26.ir/get/games"
-        url_teams = "https://worldcup26.ir/get/teams"
         hdrs = {"User-Agent":"Mozilla/5.0","Accept":"application/json"}
         ctx = ssl.create_default_context()
-        
-        # 获取球队名称映射
-        req_teams = urllib.request.Request(url_teams, headers=hdrs)
-        with urllib.request.urlopen(req_teams, context=ctx, timeout=15) as r:
-            teams_data = json.loads(r.read().decode('utf-8'))
-        teams_list = teams_data if isinstance(teams_data, list) else teams_data.get('teams', [])
-        team_map = {str(t['id']): t.get('name_en', '?') for t in teams_list}
-        
-        # 获取比赛数据
         req_games = urllib.request.Request(url_games, headers=hdrs)
         with urllib.request.urlopen(req_games, context=ctx, timeout=15) as r:
             games_data = json.loads(r.read().decode('utf-8'))
@@ -213,10 +241,11 @@ def fetch_results_v2():
         finished = [g for g in games if str(g.get('finished', '')).upper() == 'TRUE']
         
         for g in finished:
-            hid = str(g.get('home_team_id', ''))
-            aid = str(g.get('away_team_id', ''))
-            home = team_map.get(hid, f'Team{hid}')
-            away = team_map.get(aid, f'Team{aid}')
+            # 英文队名（直接在games里）
+            home_en = g.get('home_team_name_en', '').strip()
+            away_en = g.get('away_team_name_en', '').strip()
+            home = EN2CN.get(home_en, home_en)
+            away = EN2CN.get(away_en, away_en)
             
             try:
                 hs = int(g.get('home_score', 0))
@@ -224,15 +253,25 @@ def fetch_results_v2():
             except:
                 continue
             
+            # 真实比赛日期（local_date格式：MM/DD/YYYY HH:MM）
+            local_date = g.get('local_date', '')
+            try:
+                match_date = datetime.strptime(local_date, '%m/%d/%Y %H:%M').strftime('%Y-%m-%d')
+            except:
+                match_date = datetime.now().strftime('%Y-%m-%d')
+            
             total = hs + aw
             had = '主胜' if hs > aw else ('平' if hs == aw else '客胜')
+            group_raw = g.get('group', '')
+            stage = STAGE_CN.get(group_raw, group_raw)
             
             results.append({
-                'date': datetime.now().strftime('%Y-%m-%d'),
-                'match': f"{home}vs{away}",
+                'date': match_date,
+                'match': f"{home} vs {away}",
                 'score': f"{hs}:{aw}",
                 'goals': total,
-                'had': had
+                'had': had,
+                'stage': stage,
             })
     except Exception as e:
         pass  # 静默失败，不影响主流程
@@ -377,18 +416,39 @@ def fetch_h2h_kb(kb):
     return h2h
 
 def update_kb_results(kb, new_results):
-    """将新赛果合并到知识库，去重"""
+    """
+    v7.5: 将新赛果合并到知识库，去重
+    - 以 match（中文队名+vs格式）为去重Key
+    - 新数据的match字段格式为 "主队 vs 客队"，旧的可能是英文或无空格
+    - 覆盖旧的英文脏数据
+    """
     existing = kb.get('matches', [])
-    existing_keys = {(m['date'], m['match']) for m in existing}
+    # 用标准化match名做索引：去空格小写
+    def norm_key(m):
+        return m.get('match', '').replace(' ', '').lower()
+    
+    existing_map = {norm_key(m): i for i, m in enumerate(existing)}
     added = 0
+    updated = 0
     for r in new_results:
-        key = (r['date'], r['match'])
-        if key not in existing_keys:
-            existing.append(r); existing_keys.add(key); added += 1
-    if added > 0:
+        nk = norm_key(r)
+        if nk in existing_map:
+            # 如果旧数据是英文或格式不对，覆盖更新
+            old = existing[existing_map[nk]]
+            if old.get('match') != r['match'] or old.get('date') == datetime.now().strftime('%Y-%m-%d'):
+                existing[existing_map[nk]] = r
+                updated += 1
+        else:
+            existing.append(r)
+            existing_map[nk] = len(existing) - 1
+            added += 1
+    if added > 0 or updated > 0:
         kb['matches'] = existing
         _update_patterns(kb)
-        print(f"📊 赛果回写:{added}场新结果")
+        if added:
+            print(f"📊 赛果回写:{added}场新结果")
+        if updated:
+            print(f"📊 赛果修正:{updated}场（英文→中文）")
     return added
 
 def _update_patterns(kb):
@@ -1587,51 +1647,93 @@ def gen_plan(scored):
 # ═══════════════════════════════════════════
 
 def print_worldcup_summary(kb):
-    """v7.4: 打印世界杯全量赛果汇总"""
+    """v7.5: 打印世界杯全量赛果汇总 — 按日期分组，中文队名，整齐对齐"""
     matches = kb.get('matches', [])
     if not matches:
         return
     
     total = len(matches)
-    goals = [m.get('goals', 0) for m in matches if 'goals' in m]
+    goals_list = [m.get('goals', 0) for m in matches if 'goals' in m]
     hads = [m.get('had', '') for m in matches if m.get('had')]
     
-    print(f"\n{'='*80}")
-    print(f"  🌍 2026世界杯全量赛果 | 截至{datetime.now().strftime('%m-%d')} | 共{total}场")
-    print(f"{'='*80}")
+    print(f"\n{'='*72}")
+    print(f"  🌍 2026世界杯赛果汇总  截至{datetime.now().strftime('%m月%d日')}  共{total}场已赛")
+    print(f"{'='*72}")
     
-    # 进球分布
-    if goals:
+    # 进球分布（横向紧凑）
+    if goals_list:
         from collections import Counter
-        gc = Counter(goals)
-        print(f"\n  ⚽ 进球分布:")
+        gc = Counter(goals_list)
+        total_g = len(goals_list)
+        line = "  ⚽ 进球分布: "
         for g in sorted(gc.keys()):
-            bar = '█' * int(gc[g] / max(gc.values()) * 30)
-            print(f"    {g}球: {bar} {gc[g]}场 ({gc[g]/total*100:.1f}%)")
+            line += f"{g}球{gc[g]/total_g*100:.0f}%  "
+        print(line.rstrip())
     
-    # 胜平负分布
+    # 胜平负分布（横向）
     if hads:
         hc = Counter(hads)
-        print(f"\n  📊 胜平负分布:")
-        for r in ['主胜', '平', '客胜']:
-            cnt = hc.get(r, 0)
-            bar = '█' * int(cnt / total * 30) if total > 0 else ''
-            print(f"    {r}: {bar} {cnt}场 ({cnt/total*100:.1f}%)")
+        zhu = hc.get('主胜', 0)
+        ping = hc.get('平', 0)
+        ke = hc.get('客胜', 0)
+        print(f"  📊 胜负分布: 主胜{zhu}场({zhu/total*100:.0f}%)  平{ping}场({ping/total*100:.0f}%)  客胜{ke}场({ke/total*100:.0f}%)")
     
-    # 全量赛果按日期排列
-    print(f"\n  📅 全部赛果（按日期）:")
-    sorted_matches = sorted(matches, key=lambda x: x.get('date', ''), reverse=True)
-    for m in sorted_matches:
-        d = m.get('date', '?')
-        match = m.get('match', '?')
-        score = m.get('score', '?:?')
-        print(f"    {d}  {match}  {score}")
+    # 按日期分组输出
+    from collections import defaultdict
+    by_date = defaultdict(list)
+    for m in matches:
+        by_date[m.get('date', '?')].append(m)
     
-    print(f"{'='*80}\n")
+    sorted_dates = sorted(by_date.keys(), reverse=True)
+    
+    # 阶段判断（R32/R16/QF等显示晋级赛）
+    STAGE_LABEL = {
+        'A组': 'A组', 'B组': 'B组', 'C组': 'C组', 'D组': 'D组',
+        'E组': 'E组', 'F组': 'F组', 'G组': 'G组', 'H组': 'H组',
+        'I组': 'I组', 'J组': 'J组', 'K组': 'K组', 'L组': 'L组',
+        '32强赛': '🔔32强', '16强赛': '⚡16强', '8强赛': '🔥8强',
+        '4强赛': '🏆4强', '季军赛': '🥉季军', '决赛': '🏆决赛',
+    }
+    
+    print(f"\n  📅 全部赛果（最新在前）:")
+    print(f"  {'─'*68}")
+    
+    for d in sorted_dates:
+        day_matches = by_date[d]
+        # 日期标题
+        try:
+            dt = datetime.strptime(d, '%Y-%m-%d')
+            weekdays = ['一','二','三','四','五','六','日']
+            wd = weekdays[dt.weekday()]
+            date_str = f"{dt.month}月{dt.day}日（周{wd}）"
+        except:
+            date_str = d
+        print(f"\n  📆 {date_str}  [{len(day_matches)}场]")
+        
+        for m in day_matches:
+            match_name = m.get('match', '?')
+            score = m.get('score', '?:?')
+            had = m.get('had', '')
+            goals = m.get('goals', '?')
+            stage = m.get('stage', '')
+            stage_tag = STAGE_LABEL.get(stage, stage)
+            
+            # 胜负图标
+            had_icon = {'主胜': '🔵', '平': '🟡', '客胜': '🔴'}.get(had, '⚪')
+            
+            # 补零对齐
+            name_pad = match_name.ljust(20)
+            score_pad = score.center(7)
+            stage_part = f" [{stage_tag}]" if stage_tag else ""
+            print(f"    {had_icon} {name_pad} {score_pad} {goals}球{stage_part}")
+    
+    print(f"\n  {'─'*68}")
+    print(f"  ✅ 共{total}场完赛\n")
+    print(f"{'='*72}\n")
 
 def print_analysis(scored,kb):
     print("="*80)
-    print(f"   ⚽ 世界杯实战分析 v7.4 | {datetime.now().strftime('%m-%d %H:%M')} | 知识库:{len(kb.get('matches',[]))}场/{len(kb.get('teams_stats',kb.get('teams',{})))}队")
+    print(f"   ⚽ 世界杯实战分析 v7.5 | {datetime.now().strftime('%m-%d %H:%M')} | 知识库:{len(kb.get('matches',[]))}场/{len(kb.get('teams_stats',kb.get('teams',{})))}队")
     print("="*80)
     for i,sm in enumerate(sorted(scored,key=lambda x:-x['total']),1):
         m=sm['match']
@@ -1656,7 +1758,7 @@ def print_analysis(scored,kb):
     print(f"\n{'='*80}\n")
 
 def print_plan(plan):
-    print("="*80);print("        🎯 今日实战方案 v7.4");print("="*80)
+    print("="*80);print("        🎯 今日实战方案 v7.5");print("="*80)
     if'error'in plan:print(f"  ⚠️ {plan['error']}");return
     total_all=0
     for p in plan.get('plans',[]):
@@ -1731,7 +1833,7 @@ def calc_trigger_time(matches):
 # ═══════════════════════════════════════════
 
 def main():
-    print("🔄 获取体彩数据 + 加载知识库 (v7.4 实战比分)...")
+    print("🔄 获取体彩数据 + 加载知识库 (v7.5 实战比分)...")
     kb=load_knowledge_base()
     # v7.4: 每日赛果全量同步
     added = 0
